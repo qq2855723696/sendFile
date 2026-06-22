@@ -156,9 +156,9 @@ function requireSession(sessionId, uploaderIp) {
 }
 
 const server = app.listen(PORT, function () {
-  console.log('\n🚀 SendFile 服务已启动');
-  console.log('\n  本机访问: http://localhost:' + PORT);
-  console.log(' n  局域网:   http://' + ip.address() + ':' + PORT + '\n');
+  console.log('\n[*] SendFile Service Started');
+  console.log('    Local: http://localhost:' + PORT);
+  console.log('    LAN:   http://' + ip.address() + ':' + PORT + '\n');
 });
 const wss = new WebSocket.Server({ server: server });
 
