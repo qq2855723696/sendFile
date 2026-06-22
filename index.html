@@ -350,15 +350,6 @@
     }
 
     /* ─── 图片缩略图 ────────────────────────────────────────── */
-    .thumb {
-      width: 36px;
-      height: 36px;
-      object-fit: cover;
-      border-radius: 4px;
-      cursor: pointer;
-      border: 1px solid var(--line);
-      display: block;
-    }
 
     .thumb-placeholder {
       width: 36px;
@@ -432,77 +423,10 @@
       outline: none;
     }
 
-    /* ─── 图片灯箱 ──────────────────────────────────────────── */
-    .lightbox-mask {
-      position: fixed;
-      inset: 0;
-      z-index: 9999;
-      background: rgba(0, 0, 0, .92);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .lightbox-img {
-      max-width: 90vw;
-      max-height: 88vh;
-      border-radius: 6px;
-      object-fit: contain;
-      user-select: none;
-      pointer-events: none;
-    }
-
-    .lightbox-btn {
-      position: absolute;
-      width: 48px;
-      height: 48px;
-      border-radius: 50%;
-      background: rgba(255, 255, 255, .18);
-      border: none;
-      color: #fff;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: background .15s;
-      font-size: 26px;
-      line-height: 1;
-    }
-
-    .lightbox-btn:hover {
-      background: rgba(255, 255, 255, .32);
-    }
-
-    .lightbox-prev {
-      top: 50%;
-      left: 20px;
-      transform: translateY(-50%);
-    }
-
-    .lightbox-next {
-      top: 50%;
-      right: 20px;
-      transform: translateY(-50%);
-    }
-
-    .lightbox-close {
-      top: 16px;
-      right: 20px;
-      width: 36px;
-      height: 36px;
-      font-size: 18px;
-    }
-
-    .lightbox-info {
-      position: absolute;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      color: rgba(255, 255, 255, .75);
-      font-size: 13px;
-      text-align: center;
-      white-space: nowrap;
-    }
+    /* ─── 图片预览（el-image 组件覆盖） ─────────────────────── */
+    .el-image-viewer__wrapper { z-index: 9999 !important; }
+    .file-thumb-img { width: 36px; height: 36px; border-radius: 4px; border: 1px solid var(--line); cursor: pointer; }
+    .file-thumb-img .el-image__inner { width: 100%; height: 100%; object-fit: cover; }
 
     /* ─── 上传速度 ───────────────────────────────────────────── */
     .upload-speed {
@@ -703,7 +627,9 @@
     }
 
     /* ─── 移动端设置浮动按钮 + 底部抽屉 ──────────────────── */
-    .mobile-only { display: none; }
+    .mobile-only {
+      display: none;
+    }
 
     .mobile-fab {
       position: fixed;
@@ -728,48 +654,27 @@
       cursor: pointer;
       transition: filter .15s;
     }
-    .mobile-fab:hover { filter: brightness(1.08); }
-    .mobile-fab:active { filter: brightness(.92); }
 
-    .settings-sheet-mask {
-      position: fixed;
-      inset: 0;
-      z-index: 850;
-      background: rgba(0, 0, 0, .45);
-    }
-    .settings-sheet {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      z-index: 860;
-      background: var(--panel);
-      border-radius: 16px 16px 0 0;
-      box-shadow: 0 -4px 32px var(--shadow);
-      transform: translateY(100%);
-      transition: transform .3s cubic-bezier(.4, 0, .2, 1);
-      max-height: 82vh;
-      overflow-y: auto;
-      padding-bottom: 20px;
-    }
-    .settings-sheet.open { transform: translateY(0); }
-    .sheet-drag-handle {
-      width: 40px;
-      height: 4px;
-      border-radius: 2px;
-      background: var(--line);
-      margin: 12px auto 6px;
-    }
-    .sheet-head {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 8px 18px 0;
-      font-weight: 700;
-      font-size: 16px;
+    .mobile-fab:hover {
+      filter: brightness(1.08);
     }
 
-        /* ─── 移动端 ─────────────────────────────────────────────── */
+    .mobile-fab:active {
+      filter: brightness(.92);
+    }
+
+    /* el-drawer 底部抽屉覆盖 */
+    .mobile-settings-drawer .el-drawer__header {
+      margin-bottom: 0;
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .mobile-settings-drawer .el-drawer__body {
+      padding: 18px;
+    }
+
+    /* ─── 移动端 ─────────────────────────────────────────────── */
     @media (max-width: 900px) {
       #app {
         width: calc(100vw - 20px);
@@ -1095,8 +1000,9 @@
                 <!-- 缩略图列 -->
                 <el-table-column label="" width="52" align="center">
                   <template #default="{ row }">
-                    <img v-if="isImageFile(row)" :src="row.path" class="thumb" @click="openLightbox(row)"
-                      :alt="row.name" loading="lazy">
+                    <el-image v-if="isImageFile(row)" :src="row.path" class="file-thumb-img" fit="cover"
+                      :preview-src-list="imagePreviewList" :initial-index="imagePreviewList.indexOf(row.path)"
+                      preview-teleported :alt="row.name" loading="lazy" />
                     <div v-else class="thumb-placeholder">{{ row.kind === 'folder' ? '📁' : fileIcon(row) }}</div>
                   </template>
                 </el-table-column>
@@ -1152,51 +1058,48 @@
 
     <!-- ─── 移动端本机设置（浮动按鈕 + 底部抽屉） ──────────────────── -->
     <div class="mobile-only">
-      <!-- FAB 浮动按鈕：显示当前状态，点击打开设置抽屉 -->
-      <button class="mobile-fab"
-        :style="localOnline ? 'background:var(--success)' : ''"
+        <!-- FAB 浮动按钮 -->
+      <button class="mobile-fab" :style="localOnline ? 'background:var(--success)' : ''"
         @click="settingsSheetOpen = true">
         <span class="status-dot" :class="{ online: localOnline }" style="flex-shrink:0"></span>
         {{ localOnline ? deviceName : '本机设置' }}
         <span style="font-size:12px;opacity:.8">⚙️</span>
       </button>
-      <!-- 遮罩 -->
-      <div v-if="settingsSheetOpen" class="settings-sheet-mask" @click="settingsSheetOpen = false"></div>
-      <!-- 底部抽屉 -->
-      <div class="settings-sheet" :class="{ open: settingsSheetOpen }">
-        <div class="sheet-drag-handle"></div>
-        <div class="sheet-head">
-          <span>本机设置</span>
-          <div style="display:flex;align-items:center;gap:8px">
-            <el-tag :type="wsReady ? 'success' : 'info'" effect="plain" size="small">{{ wsReady ? '已连接' : '连接中' }}</el-tag>
-            <el-button size="small" circle @click="settingsSheetOpen = false">✕</el-button>
+      <!-- el-drawer 底部抽屉 -->
+      <el-drawer v-model="settingsSheetOpen" direction="btt" :with-header="true" title="本机设置" size="auto"
+        class="mobile-settings-drawer">
+        <template #header>
+          <div style="display:flex;align-items:center;justify-content:space-between;width:100%">
+            <span style="font-weight:700;font-size:16px">本机设置</span>
+            <el-tag :type="wsReady ? 'success' : 'info'" effect="plain" size="small">{{ wsReady ? '已连接' : '连接中'
+              }}</el-tag>
           </div>
-        </div>
-        <div class="panel-body">
-          <form @submit.prevent="mobileDeviceOnline">
-            <div class="field">
-              <label>设备名称</label>
-              <el-input v-model="deviceName" placeholder="例如：我的手机" clearable :disabled="localOnline"></el-input>
-            </div>
-            <div class="field">
-              <label>连接 PIN</label>
-              <el-input v-model="pinCode" placeholder="留空表示无需 PIN" maxlength="12" show-password :disabled="localOnline"></el-input>
-            </div>
-            <div class="field">
-              <label>状态</label>
-              <el-select v-model="deviceStatus" style="width:100%" :disabled="!localOnline" @change="updateMyStatus">
-                <el-option label="在线" value="online"></el-option>
-                <el-option label="忙碌" value="busy"></el-option>
-                <el-option label="离开" value="away"></el-option>
-              </el-select>
-            </div>
-            <div class="actions">
-              <el-button v-if="!localOnline" type="primary" native-type="submit" :loading="loading" style="flex:1">上线设备</el-button>
-              <el-button v-else type="danger" @click="deviceOffline" :loading="loading" style="flex:1">下线设备</el-button>
-            </div>
-          </form>
-        </div>
-      </div>
+        </template>
+        <form @submit.prevent="mobileDeviceOnline">
+          <div class="field">
+            <label>设备名称</label>
+            <el-input v-model="deviceName" placeholder="例如：我的手机" clearable :disabled="localOnline"></el-input>
+          </div>
+          <div class="field">
+            <label>连接 PIN</label>
+            <el-input v-model="pinCode" placeholder="留空表示无需 PIN" maxlength="12" show-password
+              :disabled="localOnline"></el-input>
+          </div>
+          <div class="field">
+            <label>状态</label>
+            <el-select v-model="deviceStatus" style="width:100%" :disabled="!localOnline" @change="updateMyStatus">
+              <el-option label="在线" value="online"></el-option>
+              <el-option label="忙碌" value="busy"></el-option>
+              <el-option label="离开" value="away"></el-option>
+            </el-select>
+          </div>
+          <div class="actions">
+            <el-button v-if="!localOnline" type="primary" native-type="submit" :loading="loading"
+              style="flex:1">上线设备</el-button>
+            <el-button v-else type="danger" @click="deviceOffline" :loading="loading" style="flex:1">下线设备</el-button>
+          </div>
+        </form>
+      </el-drawer>
     </div>
 
     <!-- ─── 聊天抽屉 ──────────────────────────────────────────── -->
@@ -1336,21 +1239,7 @@
       </template>
     </el-dialog>
 
-    <!-- ─── 图片灯箱 ──────────────────────────────────────────── -->
-    <div v-if="lightbox.visible" class="lightbox-mask" @click.self="closeLightbox">
-      <button class="lightbox-btn lightbox-close" @click="closeLightbox">✕</button>
-      <button v-if="lightbox.images.length > 1" class="lightbox-btn lightbox-prev" @click="lightboxPrev">‹</button>
-      <img v-if="lightbox.images.length" :src="lightbox.images[lightbox.current].path" class="lightbox-img"
-        :alt="lightbox.images[lightbox.current].name">
-      <div v-else style="color:#fff;font-size:16px">暂无图片</div>
-      <button v-if="lightbox.images.length > 1" class="lightbox-btn lightbox-next" @click="lightboxNext">›</button>
-      <div v-if="lightbox.images.length" class="lightbox-info">
-        <div style="max-width:60vw;overflow:hidden;text-overflow:ellipsis">{{ lightbox.images[lightbox.current].name }}
-        </div>
-        <div v-if="lightbox.images.length > 1" style="margin-top:4px"><!-- 图片计数 -->
-          {{ lightbox.current + 1 }} / {{ lightbox.images.length }}</div>
-      </div>
-    </div>
+
 
     <!-- ─── 下载进度浮窗 ───────────────────────────────────────── -->
     <div v-if="downloadProgress.visible" class="dl-progress-bar">
@@ -1438,8 +1327,7 @@
           notifyEnabled: (typeof Notification !== 'undefined') && Notification.permission === 'granted' && localStorage.getItem('sendfile.notify') !== '0',
           /* 下载进度 */
           downloadProgress: { visible: false, name: '', percent: 0, loaded: 0, total: 0 },
-          /* 图片灯箱 */
-          lightbox: { visible: false, images: [], current: 0 },
+
           /* 文件列表分页 */
           filePageSize: 20,
           fileCurrentPage: 1,
@@ -1482,6 +1370,10 @@
         pagedFileList() {
           const s = (this.fileCurrentPage - 1) * this.filePageSize;
           return this.filteredFileList.slice(s, s + this.filePageSize);
+        },
+        /* 图片预览列表（el-image 用） */
+        imagePreviewList() {
+          return this.filteredFileList.filter(f => this.isImageFile(f)).map(f => f.path);
         }
       },
 
@@ -1512,14 +1404,7 @@
         // 粘贴上传（Ctrl+V）
         this._pasteHandler = this.onPaste.bind(this);
         window.addEventListener('paste', this._pasteHandler);
-        // 灯箱键盘控制
-        this._lightboxKeyHandler = (e) => {
-          if (!this.lightbox.visible) return;
-          if (e.key === 'ArrowLeft') this.lightboxPrev();
-          else if (e.key === 'ArrowRight') this.lightboxNext();
-          else if (e.key === 'Escape') this.closeLightbox();
-        };
-        document.addEventListener('keydown', this._lightboxKeyHandler);
+
       },
 
       methods: {
@@ -1692,7 +1577,6 @@
           this.fileCurrentPage = 1;
           this.folderBrowse = null; this.chatMessages = []; this.chatOpen = false; this.unreadCount = 0;
           this.otherUploads = []; this.selectedKeys = [];
-          this.lightbox = { visible: false, images: [], current: 0 };
           this.downloadProgress.visible = false;
           this.clearWait(); this.showPinDialog = false; this.showConnectDialog = false; this.showJoinDialog = false;
         },
@@ -2070,22 +1954,7 @@
           else { this.sortField = field; this.sortDir = field === 'name' ? 'asc' : 'desc'; }
         },
 
-        /* ── 图片判断 + 文件图标 ───────────────────────────────── */
-        /* ── 图片灯箱 ───────────────────────────────────────── */
-        openLightbox(row) {
-          const images = this.filteredFileList.filter(f => this.isImageFile(f));
-          const idx = images.findIndex(f => f.path === row.path);
-          this.lightbox = { visible: true, images, current: Math.max(0, idx) };
-        },
-        closeLightbox() { this.lightbox.visible = false; },
-        lightboxPrev() {
-          const len = this.lightbox.images.length; if (!len) return;
-          this.lightbox.current = (this.lightbox.current - 1 + len) % len;
-        },
-        lightboxNext() {
-          const len = this.lightbox.images.length; if (!len) return;
-          this.lightbox.current = (this.lightbox.current + 1) % len;
-        },
+
 
         /* ── 粘贴上传 (Ctrl+V) ─────────────────────────────────── */
         onPaste(e) {
@@ -2191,7 +2060,6 @@
         clearTimeout(this.deviceActionTimer); clearTimeout(this.reconnectTimer);
         this.ws?.close();
         if (this._pasteHandler) window.removeEventListener('paste', this._pasteHandler);
-        if (this._lightboxKeyHandler) document.removeEventListener('keydown', this._lightboxKeyHandler);
       }
     }).use(ElementPlus).mount('#app');
   </script>
