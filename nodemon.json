@@ -1,0 +1,11 @@
+{
+  "watch": [
+    "server.js",
+    "index.html"
+  ],
+  "ext": "js,html,json",
+  "ignore": [
+    "uploads/**",
+    "node_modules/**"
+  ]
+}
