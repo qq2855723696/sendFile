@@ -116,6 +116,18 @@
     .preview-text { min-height: 260px; margin: 0; padding: 16px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--preview-bg); color: #e5e7eb; font: 13px/1.7 Consolas,"Microsoft YaHei",monospace; white-space: pre-wrap; word-break: break-word; }
     .row-actions { display: inline-flex; align-items: center; gap: 6px; flex-wrap: nowrap; white-space: nowrap; }
 
+    /* ─── 图片缩略图 ────────────────────────────────────────── */
+    .thumb { width: 36px; height: 36px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid var(--line); display: block; }
+    .thumb-placeholder { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+
+    /* ─── 排序按钮 ───────────────────────────────────────────── */
+    .sort-btn { cursor: pointer; color: var(--muted); font-size: 12px; padding: 2px 6px; border-radius: 4px; border: 1px solid var(--line); background: transparent; white-space: nowrap; }
+    .sort-btn.active { color: var(--primary); border-color: var(--primary); background: rgba(37,99,235,.07); }
+    .sort-btn:hover { border-color: var(--primary); color: var(--primary); }
+
+    /* ─── 上传速度 ───────────────────────────────────────────── */
+    .upload-speed { margin-top: 4px; font-size: 12px; color: var(--muted); text-align: right; }
+
     /* ─── 聊天面板 ──────────────────────────────────────────── */
     .chat-drawer { position: fixed; top: 0; right: 0; width: 320px; height: 100vh; background: var(--panel); border-left: 1px solid var(--line); box-shadow: -4px 0 24px var(--shadow); display: flex; flex-direction: column; z-index: 900; transform: translateX(100%); transition: transform .28s cubic-bezier(.4,0,.2,1); }
     .chat-drawer.open { transform: translateX(0); }
@@ -184,6 +196,9 @@
       </el-button>
       <el-button size="small" @click="showHistoryDialog = true">
         🕐 历史记录
+      </el-button>
+      <el-button size="small" @click="requestNotifyPermission" :type="notifyPermission === 'granted' ? 'success' : ''" :title="notifyPermission === 'granted' ? '桌面通知已开启' : '点击开启桌面通知'">
+        {{ notifyPermission === 'granted' ? '🔔 通知已开' : '🔕 开启通知' }}
       </el-button>
       <el-button size="small" @click="toggleDark">
         {{ darkMode ? '☀️ 亮色' : '🌙 深色' }}
@@ -332,6 +347,7 @@
             <div class="drop-title">拖拽文件到这里上传</div>
             <div class="drop-copy">支持多文件、文件夹选择，大文件断点续传，最大 500MB/个</div>
             <el-progress v-if="uploading" :percentage="uploadProgress" :stroke-width="10" style="margin-top:12px"></el-progress>
+            <div v-if="uploading && uploadSpeedText" class="upload-speed">⚡ {{ uploadSpeedText }}</div>
           </div>
 
           <div class="actions" style="margin-bottom:14px">
@@ -349,7 +365,11 @@
           <template v-else>
             <!-- 搜索栏 -->
             <div class="toolbar">
-              <el-input v-model="fileSearch" placeholder="搜索文件名…" clearable style="width:220px" prefix-icon="Search"></el-input>
+              <el-input v-model="fileSearch" placeholder="搜索文件名…" clearable style="width:200px" prefix-icon="Search"></el-input>
+              <!-- 排序 -->
+              <button class="sort-btn" :class="{ active: sortField==='name' }" @click="toggleSort('name')">名称 {{ sortField==='name' ? (sortDir==='asc' ? '↑' : '↓') : '' }}</button>
+              <button class="sort-btn" :class="{ active: sortField==='size' }" @click="toggleSort('size')">大小 {{ sortField==='size' ? (sortDir==='asc' ? '↑' : '↓') : '' }}</button>
+              <button class="sort-btn" :class="{ active: sortField==='uploadedAt' }" @click="toggleSort('uploadedAt')">时间 {{ sortField==='uploadedAt' ? (sortDir==='asc' ? '↑' : '↓') : '' }}</button>
               <div class="toolbar-right">
                 <el-button size="small" @click="toggleSelectAll">
                   {{ selectedKeys.length === filteredFileList.length && filteredFileList.length > 0 ? '取消全选' : '全选' }}
@@ -392,14 +412,21 @@
 
             <el-table v-else :data="filteredFileList" border stripe @selection-change="onSelectionChange">
               <el-table-column type="selection" width="46"></el-table-column>
-              <el-table-column label="名称" min-width="220">
+              <!-- 缩略图列 -->
+              <el-table-column label="" width="52" align="center">
                 <template #default="{ row }">
-                  <el-button v-if="row.kind === 'folder'" link type="primary" @click="openFolder(row)">[文件夹] {{ row.name }}</el-button>
-                  <span v-else>{{ row.name }}</span>
+                  <img v-if="isImageFile(row)" :src="row.path" class="thumb" @click="previewFile(row)" :alt="row.name" loading="lazy">
+                  <div v-else class="thumb-placeholder">{{ row.kind === 'folder' ? '📁' : fileIcon(row) }}</div>
                 </template>
               </el-table-column>
-              <el-table-column label="类型" width="80" align="center">
-                <template #default="{ row }">{{ row.kind === 'folder' ? '📁' : fileKindText(row) }}</template>
+              <el-table-column label="名称" min-width="200">
+                <template #default="{ row }">
+                  <el-button v-if="row.kind === 'folder'" link type="primary" @click="openFolder(row)">[文件夹] {{ row.name }}</el-button>
+                  <span v-else style="cursor:pointer" @click="previewFile(row)">{{ row.name }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="类型" width="70" align="center">
+                <template #default="{ row }">{{ row.kind === 'folder' ? '文件夹' : fileKindText(row) }}</template>
               </el-table-column>
               <el-table-column label="大小" width="100" align="center">
                 <template #default="{ row }">{{ row.kind === 'folder' ? `${(row.items||[]).length} 项` : fileSizeText(row) }}</template>
@@ -417,6 +444,7 @@
                       <el-button type="primary" size="small" @click="previewFile(row)">预览</el-button>
                       <el-button type="success" size="small" @click="downloadFile(row)">下载</el-button>
                     </template>
+                    <el-button size="small" @click="copyFileLink(row)" title="复制下载链接">🔗</el-button>
                     <el-button v-if="row.ip === myRealIp" type="warning" size="small" @click="openRenameDialog(row)">改名</el-button>
                     <el-button v-if="row.ip === myRealIp" type="danger" size="small" @click="deleteFile(row)">删除</el-button>
                   </span>
@@ -599,6 +627,7 @@ createApp({
       /* 会话 */
       isConnected: false, currentSessionId: '', currentSessionMembers: [], fileList: [],
       fileSearch: '', selectedKeys: [],
+      sortField: 'uploadedAt', sortDir: 'desc',
       /* 弹窗 */
       showPinDialog: false, showConnectDialog: false, showJoinDialog: false,
       showWaitDialog: false, showQrDialog: false, showClipDialog: false,
@@ -607,7 +636,8 @@ createApp({
       targetIpForPin: '', targetDeviceName: '', inputPin: '',
       incomingRequest: {}, incomingJoin: {}, waitTimer: null,
       /* 上传 */
-      uploading: false, uploadProgress: 0,
+      uploading: false, uploadProgress: 0, uploadSpeedText: '',
+      _uploadStartTime: 0, _uploadedBytes: 0,
       dragActive: false, dragDepth: 0,
       /* 他人上传进度 */
       otherUploads: [],
@@ -626,7 +656,11 @@ createApp({
       /* 历史记录 */
       transferHistory: JSON.parse(localStorage.getItem('sendfile.history') || '[]'),
       /* 深色模式 */
-      darkMode: localStorage.getItem('sendfile.dark') === '1',
+      darkMode: localStorage.getItem('sendfile.dark') !== null
+        ? localStorage.getItem('sendfile.dark') === '1'
+        : window.matchMedia('(prefers-color-scheme: dark)').matches,
+      /* 桌面通知 */
+      notifyPermission: (typeof Notification !== 'undefined') ? Notification.permission : 'denied',
       /* 常量 */
       CHUNK_SIZE: 2 * 1024 * 1024,
       CHUNK_CONCURRENCY: 4,
@@ -646,8 +680,16 @@ createApp({
     },
     filteredFileList() {
       const q = this.fileSearch.trim().toLowerCase();
-      if (!q) return this.fileList;
-      return this.fileList.filter(f => (f.name || '').toLowerCase().includes(q));
+      let list = q ? this.fileList.filter(f => (f.name || '').toLowerCase().includes(q)) : this.fileList.slice();
+      // 排序
+      const field = this.sortField;
+      const dir = this.sortDir === 'asc' ? 1 : -1;
+      list.sort((a, b) => {
+        let av = a[field], bv = b[field];
+        if (field === 'name') { av = (av || '').toLowerCase(); bv = (bv || '').toLowerCase(); return av < bv ? -dir : av > bv ? dir : 0; }
+        return ((av || 0) - (bv || 0)) * dir;
+      });
+      return list;
     }
   },
 
@@ -663,6 +705,12 @@ createApp({
   mounted() {
     document.documentElement.setAttribute('data-theme', this.darkMode ? 'dark' : 'light');
     this.connectSocket();
+    // 监听系统主题变化（只在未手动设置时生效）
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+      if (localStorage.getItem('sendfile.dark') === null) {
+        this.darkMode = e.matches;
+      }
+    });
   },
 
   methods: {
@@ -711,13 +759,22 @@ createApp({
         MEMBER_JOINED:  () => ElMessage.success(msg.message || '新成员已加入'),
         GROUP_JOIN_NOTIFY: () => { this.incomingJoin = msg; this.showJoinDialog = true; },
         GROUP_JOIN_RESULT: () => { if (msg.pending) ElMessage.info(msg.message); else if (msg.success) ElMessage.success(msg.message || '已加入会话'); else ElMessage.warning(msg.message || '加入失败'); },
-        FILE_LIST:      () => { this.fileList = msg.list || []; },
+        FILE_LIST: () => {
+          const prev = this.fileList.length;
+          this.fileList = msg.list || [];
+          // 有新文件时发送桌面通知
+          const added = this.fileList.length - prev;
+          if (added > 0 && !document.hasFocus() && this.isConnected) {
+            this.showNativeNotif('📥 新文件', `收到 ${added} 个新文件`);
+          }
+        },
         ERROR:          () => ElMessage.error(msg.message || '服务端错误'),
         // 新增消息类型
         CHAT_MSG:       () => {
           this.chatMessages.push(msg);
           if (!this.chatOpen) this.unreadCount++;
           this.$nextTick(() => this.scrollChat());
+          if (!document.hasFocus()) this.showNativeNotif('💬 ' + msg.fromName, msg.content.slice(0, 80));
         },
         CLIP_SHARE:     () => { this.receivedClip = msg; this.showClipReceive = true; },
         UPLOAD_PROGRESS:() => {
@@ -853,6 +910,7 @@ createApp({
       if (files.reduce((s, f) => s + f.size, 0) > this.MAX_TOTAL_UPLOAD_SIZE) { ElMessage.error('单次上传总大小不能超过 2GB'); return; }
       const folderMeta = this.detectFolderUpload(files);
       this.uploading = true; this.uploadProgress = 0;
+      this._uploadStartTime = Date.now(); this._uploadedBytes = 0; this.uploadSpeedText = '';
       try {
         await this.uploadByChunks(files, folderMeta);
         this.uploadProgress = 100;
@@ -862,7 +920,7 @@ createApp({
         ElMessage.error(err.message || '上传失败');
         this.addHistory(files, false);
       } finally {
-        setTimeout(() => { this.uploading = false; this.uploadProgress = 0; }, 600);
+        setTimeout(() => { this.uploading = false; this.uploadProgress = 0; this.uploadSpeedText = ''; }, 800);
       }
     },
 
@@ -912,8 +970,9 @@ createApp({
 
     async uploadChunk(task) {
       const start = task.chunkIndex * this.CHUNK_SIZE;
+      const chunkBlob = task.file.slice(start, Math.min(start + this.CHUNK_SIZE, task.file.size));
       const form = new FormData();
-      form.append('chunk', task.file.slice(start, Math.min(start + this.CHUNK_SIZE, task.file.size)));
+      form.append('chunk', chunkBlob);
       form.append('uploadId', task.uploadId);
       form.append('chunkIndex', String(task.chunkIndex));
       form.append('totalChunks', String(task.totalChunks));
@@ -926,6 +985,10 @@ createApp({
       const r = await fetch('/upload-chunk', { method:'POST', body:form });
       const j = await r.json().catch(() => ({}));
       if (!r.ok || j.success === false) throw new Error(j.message || '分片上传失败');
+      // 计算上传速度
+      this._uploadedBytes += chunkBlob.size;
+      const elapsed = (Date.now() - this._uploadStartTime) / 1000;
+      if (elapsed > 0) this.uploadSpeedText = this.formatSize(this._uploadedBytes / elapsed) + '/s';
     },
 
     /* ── 文件操作 ───────────────────────────────────────────── */
@@ -1052,7 +1115,62 @@ createApp({
     },
 
     /* ── 深色模式 ────────────────────────────────────────────── */
-    toggleDark() { this.darkMode = !this.darkMode; },
+    toggleDark() {
+      this.darkMode = !this.darkMode;
+      localStorage.setItem('sendfile.dark', this.darkMode ? '1' : '0');
+    },
+
+    /* ── 桌面通知 ──────────────────────────────────────── */
+    async requestNotifyPermission() {
+      if (typeof Notification === 'undefined') { ElMessage.warning('浏览器不支持桌面通知'); return; }
+      if (Notification.permission === 'granted') { ElMessage.success('桌面通知已开启'); return; }
+      const perm = await Notification.requestPermission();
+      this.notifyPermission = perm;
+      if (perm === 'granted') ElMessage.success('桌面通知已开启！');
+      else ElMessage.warning('用户拒绝了通知权限');
+    },
+    showNativeNotif(title, body) {
+      if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+      try { new Notification(title, { body }); } catch(e) {}
+    },
+
+    /* ── 文件排序 ──────────────────────────────────────── */
+    toggleSort(field) {
+      if (this.sortField === field) this.sortDir = this.sortDir === 'asc' ? 'desc' : 'asc';
+      else { this.sortField = field; this.sortDir = field === 'name' ? 'asc' : 'desc'; }
+    },
+
+    /* ── 图片判断 + 文件图标 ───────────────────────────────── */
+    isImageFile(row) {
+      const t = String(row.fileType || '').toLowerCase();
+      const ext = this.fileExtension(row);
+      return row.kind === 'file' && (t.startsWith('image/') || ['png','jpg','jpeg','gif','webp','bmp','svg'].includes(ext));
+    },
+    fileIcon(row) {
+      const ext = this.fileExtension(row);
+      if (['mp4','webm','mov','avi'].includes(ext)) return '🎬';
+      if (['mp3','wav','flac','m4a','ogg'].includes(ext)) return '🎵';
+      if (ext === 'pdf') return '📄';
+      if (['docx','doc'].includes(ext)) return '📝';
+      if (['zip','rar','7z','tar','gz'].includes(ext)) return '🗂️';
+      if (['js','ts','py','go','java','sh','css','html','json','yml','yaml'].includes(ext)) return '💻';
+      return '📄';
+    },
+
+    /* ── 复制下载链接 ─────────────────────────────────── */
+    async copyFileLink(row) {
+      if (!row || !row.path) { ElMessage.warning('文件链接不可用'); return; }
+      const url = location.origin + row.path;
+      try {
+        await navigator.clipboard.writeText(url);
+        ElMessage.success('下载链接已复制 ✓');
+      } catch(e) {
+        const input = document.createElement('input'); input.value = url;
+        document.body.appendChild(input); input.select();
+        try { document.execCommand('copy'); ElMessage.success('下载链接已复制 ✓'); } catch(e2) { ElMessage.info('链接：' + url); }
+        document.body.removeChild(input);
+      }
+    },
 
     /* ── 传输历史 ────────────────────────────────────────────── */
     addHistory(files, ok) {
