@@ -702,7 +702,74 @@
       border-radius: 8px !important;
     }
 
-    /* ─── 移动端 ─────────────────────────────────────────────── */
+    /* ─── 移动端设置浮动按钮 + 底部抽屉 ──────────────────── */
+    .mobile-only { display: none; }
+
+    .mobile-fab {
+      position: fixed;
+      bottom: 22px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 800;
+      white-space: nowrap;
+      border-radius: 24px;
+      padding: 0 22px;
+      height: 46px;
+      font-size: 14px;
+      font-weight: 600;
+      font-family: inherit;
+      box-shadow: 0 4px 18px rgba(37, 99, 235, .40);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      transition: filter .15s;
+    }
+    .mobile-fab:hover { filter: brightness(1.08); }
+    .mobile-fab:active { filter: brightness(.92); }
+
+    .settings-sheet-mask {
+      position: fixed;
+      inset: 0;
+      z-index: 850;
+      background: rgba(0, 0, 0, .45);
+    }
+    .settings-sheet {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 860;
+      background: var(--panel);
+      border-radius: 16px 16px 0 0;
+      box-shadow: 0 -4px 32px var(--shadow);
+      transform: translateY(100%);
+      transition: transform .3s cubic-bezier(.4, 0, .2, 1);
+      max-height: 82vh;
+      overflow-y: auto;
+      padding-bottom: 20px;
+    }
+    .settings-sheet.open { transform: translateY(0); }
+    .sheet-drag-handle {
+      width: 40px;
+      height: 4px;
+      border-radius: 2px;
+      background: var(--line);
+      margin: 12px auto 6px;
+    }
+    .sheet-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 18px 0;
+      font-weight: 700;
+      font-size: 16px;
+    }
+
+        /* ─── 移动端 ─────────────────────────────────────────────── */
     @media (max-width: 900px) {
       #app {
         width: calc(100vw - 20px);
@@ -729,6 +796,10 @@
 
       .layout>aside {
         display: none;
+      }
+
+      .mobile-only {
+        display: block;
       }
     }
 
@@ -1079,6 +1150,55 @@
       </section>
     </main>
 
+    <!-- ─── 移动端本机设置（浮动按鈕 + 底部抽屉） ──────────────────── -->
+    <div class="mobile-only">
+      <!-- FAB 浮动按鈕：显示当前状态，点击打开设置抽屉 -->
+      <button class="mobile-fab"
+        :style="localOnline ? 'background:var(--success)' : ''"
+        @click="settingsSheetOpen = true">
+        <span class="status-dot" :class="{ online: localOnline }" style="flex-shrink:0"></span>
+        {{ localOnline ? deviceName : '本机设置' }}
+        <span style="font-size:12px;opacity:.8">⚙️</span>
+      </button>
+      <!-- 遮罩 -->
+      <div v-if="settingsSheetOpen" class="settings-sheet-mask" @click="settingsSheetOpen = false"></div>
+      <!-- 底部抽屉 -->
+      <div class="settings-sheet" :class="{ open: settingsSheetOpen }">
+        <div class="sheet-drag-handle"></div>
+        <div class="sheet-head">
+          <span>本机设置</span>
+          <div style="display:flex;align-items:center;gap:8px">
+            <el-tag :type="wsReady ? 'success' : 'info'" effect="plain" size="small">{{ wsReady ? '已连接' : '连接中' }}</el-tag>
+            <el-button size="small" circle @click="settingsSheetOpen = false">✕</el-button>
+          </div>
+        </div>
+        <div class="panel-body">
+          <form @submit.prevent="mobileDeviceOnline">
+            <div class="field">
+              <label>设备名称</label>
+              <el-input v-model="deviceName" placeholder="例如：我的手机" clearable :disabled="localOnline"></el-input>
+            </div>
+            <div class="field">
+              <label>连接 PIN</label>
+              <el-input v-model="pinCode" placeholder="留空表示无需 PIN" maxlength="12" show-password :disabled="localOnline"></el-input>
+            </div>
+            <div class="field">
+              <label>状态</label>
+              <el-select v-model="deviceStatus" style="width:100%" :disabled="!localOnline" @change="updateMyStatus">
+                <el-option label="在线" value="online"></el-option>
+                <el-option label="忙碌" value="busy"></el-option>
+                <el-option label="离开" value="away"></el-option>
+              </el-select>
+            </div>
+            <div class="actions">
+              <el-button v-if="!localOnline" type="primary" native-type="submit" :loading="loading" style="flex:1">上线设备</el-button>
+              <el-button v-else type="danger" @click="deviceOffline" :loading="loading" style="flex:1">下线设备</el-button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
     <!-- ─── 聊天抽屉 ──────────────────────────────────────────── -->
     <div class="chat-drawer" :class="{ open: chatOpen }">
       <div class="chat-header">
@@ -1326,6 +1446,8 @@
           /* 拖拽排序 */
           dragSrcIdx: -1,
           dragOverIdx: -1,
+          /* 移动端设置抽屉 */
+          settingsSheetOpen: false,
           /* 常量 */
           CHUNK_SIZE: 2 * 1024 * 1024,
           CHUNK_CONCURRENCY: 4,
@@ -1372,6 +1494,8 @@
         },
         fileSearch() { this.fileCurrentPage = 1; },
         sortField() { this.fileCurrentPage = 1; },
+        // 上线后自动关闭移动端设置抽屉
+        localOnline(v) { if (v) this.settingsSheetOpen = false; },
       },
 
       mounted() {
@@ -1492,6 +1616,8 @@
           if (!this.canRunDeviceAction('上线')) return;
           this.loading = true; this.lockDeviceAction(); this.sendOnline(true);
         },
+        // 移动端上线：同 deviceOnline，上线成功后由 watcher 关闭抽屉
+        mobileDeviceOnline() { this.deviceOnline(); },
         sendOnline(showToast) {
           this.safeSend({ type: 'ONLINE', name: this.deviceName.trim(), status: this.deviceStatus, pin: this.pinCode.trim(), showToast });
         },
