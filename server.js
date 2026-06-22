@@ -24,7 +24,9 @@ fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 fs.mkdirSync(CHUNK_DIR, { recursive: true });
 
 app.use(express.json({ limit: '10mb' }));
-app.use(express.static(__dirname));
+// 只暴露前端入口 + node_modules 静态资源，不暴露源码文件
+app.use('/node_modules', express.static(path.join(__dirname, 'node_modules')));
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 app.use('/files', express.static(UPLOAD_DIR));
 app.get('/favicon.ico', (req, res) => res.status(204).end());
 
@@ -260,11 +262,11 @@ app.get('/upload-status', function(req, res) {
   } catch(e) { res.json({ chunks: [] }); }
 });
 
-// Upload
+// 普通上传
 app.post('/upload', upload.any(), function(req, res) {
   try {
-    const sessionId = String(req.body.sessionId || '').trim();
-    const uploaderIp = String(req.body.uploaderIp || normalizeIp(req.ip)).trim();
+    const sessionId  = String(req.body.sessionId || '').trim();
+    const uploaderIp = normalizeIp(req.ip); // 使用服务端真实 IP，不信任客户端传入的 IP
     const session = requireSession(sessionId, uploaderIp);
     if (!session) return res.status(400).json({ success: false, message: '\u4f1a\u8bdd\u5df2\u5931\u6548\uff0c\u8bf7\u91cd\u65b0\u8fde\u63a5' });
     for (const file of req.files || []) {
@@ -275,18 +277,18 @@ app.post('/upload', upload.any(), function(req, res) {
   } catch(e) { res.status(500).json({ success: false, message: '\u4e0a\u4f20\u5931\u8d25' }); }
 });
 
-// Chunk upload
+// 分片上传（含进度广播）
 app.post('/upload-chunk', chunkUpload.single('chunk'), function(req, res) {
   try {
-    const uploadId = String(req.body.uploadId || '').trim();
-    const sessionId = String(req.body.sessionId || '').trim();
-    const uploaderIp = String(req.body.uploaderIp || '').trim();
+    const uploadId   = String(req.body.uploadId   || '').trim();
+    const sessionId  = String(req.body.sessionId  || '').trim();
+    const uploaderIp = normalizeIp(req.ip); // 服务端真实 IP
     const chunkIndex = Number(req.body.chunkIndex);
     const totalChunks = Number(req.body.totalChunks);
     if (!requireSession(sessionId, uploaderIp)) return res.status(400).json({ success: false, message: '\u4f1a\u8bdd\u5df2\u5931\u6548\uff0c\u8bf7\u91cd\u65b0\u8fde\u63a5' });
     if (!req.file || !uploadId || !Number.isInteger(chunkIndex) || !Number.isInteger(totalChunks) || chunkIndex < 0 || totalChunks <= 0) return res.status(400).json({ success: false, message: '\u5206\u7247\u53c2\u6570\u65e0\u6548' });
     if (!chunkUploads.has(uploadId)) {
-      chunkUploads.set(uploadId, { sessionId: sessionId, uploaderIp: uploaderIp, fileName: String(req.body.fileName || 'file'), relativePath: String(req.body.relativePath || req.body.fileName || 'file'), fileSize: Number(req.body.fileSize || 0), fileType: String(req.body.fileType || ''), totalChunks: totalChunks });
+      chunkUploads.set(uploadId, { sessionId: sessionId, uploaderIp: uploaderIp, fileName: String(req.body.fileName || 'file'), relativePath: String(req.body.relativePath || req.body.fileName || 'file'), fileSize: Number(req.body.fileSize || 0), fileType: String(req.body.fileType || ''), totalChunks: totalChunks, createdAt: Date.now() });
       fs.mkdirSync(path.join(CHUNK_DIR, uploadId), { recursive: true });
     }
     fs.writeFileSync(path.join(CHUNK_DIR, uploadId, chunkIndex + '.part'), req.file.buffer);
@@ -302,11 +304,11 @@ app.post('/upload-chunk', chunkUpload.single('chunk'), function(req, res) {
   } catch(e) { res.status(500).json({ success: false, message: '\u5206\u7247\u4e0a\u4f20\u5931\u8d25' }); }
 });
 
-// Begin folder batch
+// 开始文件夹批次
 app.post('/begin-folder-batch', function(req, res) {
   try {
-    const sessionId = String(req.body.sessionId || '').trim();
-    const uploaderIp = String(req.body.uploaderIp || '').trim();
+    const sessionId  = String(req.body.sessionId  || '').trim();
+    const uploaderIp = normalizeIp(req.ip); // 服务端真实 IP
     const batchId = String(req.body.batchId || '').trim();
     const rootName = sanitizeName(req.body.rootName);
     const fileCount = Number(req.body.fileCount);
@@ -359,11 +361,11 @@ app.post('/upload-complete', function(req, res) {
   } catch(e) { res.status(500).json({ success: false, message: '\u6587\u4ef6\u5408\u5e76\u5931\u8d25' }); }
 });
 
-// Delete file
+// 删除文件
 app.post('/delete-file', function(req, res) {
   try {
-    const sessionId = String(req.body.sessionId || '').trim();
-    const uploaderIp = String(req.body.uploaderIp || '').trim();
+    const sessionId  = String(req.body.sessionId  || '').trim();
+    const uploaderIp = normalizeIp(req.ip); // 服务端真实 IP
     const filePath = String(req.body.filePath || '').trim();
     const fileId = String(req.body.fileId || '').trim();
     const session = requireSession(sessionId, uploaderIp);
@@ -380,11 +382,11 @@ app.post('/delete-file', function(req, res) {
   } catch(e) { res.status(500).json({ success: false, message: '\u5220\u9664\u5931\u8d25' }); }
 });
 
-// Rename file
+// 重命名文件
 app.post('/rename-file', function(req, res) {
   try {
-    const sessionId = String(req.body.sessionId || '').trim();
-    const uploaderIp = String(req.body.uploaderIp || '').trim();
+    const sessionId  = String(req.body.sessionId  || '').trim();
+    const uploaderIp = normalizeIp(req.ip); // 服务端真实 IP
     const filePath = String(req.body.filePath || '').trim();
     const fileId = String(req.body.fileId || '').trim();
     const newName = sanitizeName(String(req.body.newName || '').trim());
@@ -404,7 +406,7 @@ app.post('/rename-file', function(req, res) {
 app.post('/batch-download-zip', function(req, res) {
   try {
     const sessionId = String(req.body.sessionId || '').trim();
-    const rIp = String(req.body.requesterIp || normalizeIp(req.ip)).trim();
+    const rIp = normalizeIp(req.ip); // 服务端真实 IP
     const fileKeys = Array.isArray(req.body.fileKeys) ? req.body.fileKeys.map(String) : [];
     const session = requireSession(sessionId, rIp);
     if (!session) return res.status(403).send('\u65e0\u6743\u4e0b\u8f7d');
@@ -428,7 +430,7 @@ app.get('/download-folder-zip', function(req, res) {
   try {
     const sessionId = String(req.query.sessionId || '').trim();
     const folderId = String(req.query.folderId || '').trim();
-    const rIp = String(req.query.requesterIp || normalizeIp(req.ip)).trim();
+    const rIp = normalizeIp(req.ip); // 服务端真实 IP
     const session = requireSession(sessionId, rIp);
     if (!session) return res.status(403).send('\u65e0\u6743\u4e0b\u8f7d');
     const entry = session.files.find(function(f) { return f.kind === 'folder' && f.id === folderId; });
@@ -467,7 +469,7 @@ app.use(function(err, req, res, next) {
   return res.status(413).json({ success: false, message: '\u4e0a\u4f20\u6587\u4ef6\u4e0d\u7b26\u5408\u9650\u5236\u6761\u4ef6' });
 });
 
-// Auto cleanup (every hour, delete files older than 24h not in any session)
+// 自动清理过期文件（每小时执行一次）
 setInterval(function() {
   try {
     const now = Date.now();
@@ -486,5 +488,34 @@ setInterval(function() {
     }
   } catch(e) {}
 }, 60 * 60 * 1000);
+
+// 居孤分片超时清理（2小时未完成的任务）
+const CHUNK_EXPIRE_MS = 2 * 60 * 60 * 1000;
+setInterval(function() {
+  try {
+    const now = Date.now();
+    // 清理内存中超时的 chunkUploads 元数据
+    for (const [uploadId, meta] of chunkUploads.entries()) {
+      if (meta.createdAt && now - meta.createdAt > CHUNK_EXPIRE_MS) {
+        chunkUploads.delete(uploadId);
+        try { fs.rmSync(path.join(CHUNK_DIR, uploadId), { recursive: true, force: true }); } catch(e) {}
+      }
+    }
+    // 清理磁盘上居孤的分片目录
+    if (fs.existsSync(CHUNK_DIR)) {
+      const dirs = fs.readdirSync(CHUNK_DIR);
+      for (const dir of dirs) {
+        if (chunkUploads.has(dir)) continue; // 还在使用
+        const dp = path.join(CHUNK_DIR, dir);
+        try {
+          const stat = fs.statSync(dp);
+          if (stat.isDirectory() && now - stat.mtimeMs > CHUNK_EXPIRE_MS) {
+            fs.rmSync(dp, { recursive: true, force: true });
+          }
+        } catch(e) {}
+      }
+    }
+  } catch(e) {}
+}, 30 * 60 * 1000);
 
 module.exports = { app: app, server: server };

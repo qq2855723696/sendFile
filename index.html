@@ -676,6 +676,11 @@ createApp({
       this.ws.onopen = () => { this.wsReady = true; if (this.localOnline) this.sendOnline(false); };
       this.ws.onclose = () => {
         if (this.ws === sock) { this.wsReady = false; this.ws = null; }
+        // 断线时若在会话中，重置会话状态
+        if (this.isConnected) {
+          this.forceBackToList();
+          ElMessage.warning('连接已断开，请重新上线并进入会话');
+        }
         if (!sock.manualClose) this.reconnectTimer = setTimeout(() => this.connectSocket(), 1200);
       };
       this.ws.onerror = () => { this.wsReady = false; };
@@ -729,6 +734,15 @@ createApp({
       h[msg.type]?.();
     },
 
+    /* 安全 WebSocket 发送（统一封装，防止断线时报错） */
+    safeSend(payload) {
+      if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+        ElMessage.warning('服务未连接，请稍候再试'); return false;
+      }
+      try { this.ws.send(JSON.stringify(payload)); return true; }
+      catch(e) { ElMessage.warning('消息发送失败'); return false; }
+    },
+
     /* ── 设备上下线 ────────────────────────────────────────── */
     deviceOnline() {
       if (!this.deviceName.trim()) { ElMessage.warning('请输入设备名称'); return; }
@@ -736,12 +750,12 @@ createApp({
       this.loading = true; this.lockDeviceAction(); this.sendOnline(true);
     },
     sendOnline(showToast) {
-      this.ws.send(JSON.stringify({ type: 'ONLINE', name: this.deviceName.trim(), status: this.deviceStatus, pin: this.pinCode.trim(), showToast }));
+      this.safeSend({ type: 'ONLINE', name: this.deviceName.trim(), status: this.deviceStatus, pin: this.pinCode.trim(), showToast });
     },
     deviceOffline() {
       if (!this.canRunDeviceAction('下线')) return;
       this.loading = true; this.lockDeviceAction();
-      this.ws?.send(JSON.stringify({ type: 'OFFLINE' }));
+      this.safeSend({ type: 'OFFLINE' });
     },
     canRunDeviceAction(name) {
       if (this.deviceActionPending) { ElMessage.warning(`正在处理${name}请求，请勿重复点击`); return false; }
@@ -754,7 +768,7 @@ createApp({
       this.deviceActionTimer = setTimeout(() => { this.loading = false; this.deviceActionPending = false; ElMessage.warning('服务响应超时，请检查连接后重试'); }, 8000);
     },
     updateMyStatus() {
-      if (this.localOnline && this.wsReady) this.ws.send(JSON.stringify({ type: 'UPDATE_STATUS', status: this.deviceStatus }));
+      if (this.localOnline && this.wsReady) this.safeSend({ type: 'UPDATE_STATUS', status: this.deviceStatus });
     },
 
     /* ── 连接 / 配对 ───────────────────────────────────────── */
@@ -771,22 +785,22 @@ createApp({
     sendConnectRequest(targetIp, pin) {
       this.showWaitDialog = true; clearTimeout(this.waitTimer);
       this.waitTimer = setTimeout(() => { this.showWaitDialog = false; ElMessage.warning('连接超时，对方未响应'); }, 30000);
-      this.ws.send(JSON.stringify({ type: 'CONNECT_REQ', targetIp, pin, timestamp: Date.now() }));
+      this.safeSend({ type: 'CONNECT_REQ', targetIp, pin, timestamp: Date.now() });
     },
     replyConnect(allow) {
-      this.ws.send(JSON.stringify({ type: 'CONNECT_RES', toIp: this.incomingRequest.fromIp, allow, message: allow ? '对方已同意连接' : '对方拒绝了连接' }));
+      this.safeSend({ type: 'CONNECT_RES', toIp: this.incomingRequest.fromIp, allow, message: allow ? '对方已同意连接' : '对方拒绝了连接' });
       this.showConnectDialog = false;
     },
     requestJoinGroup(row) {
       if (!this.localOnline) { ElMessage.warning('请先上线本机设备'); return; }
-      this.ws.send(JSON.stringify({ type: 'GROUP_JOIN_REQ', groupId: row.id }));
+      this.safeSend({ type: 'GROUP_JOIN_REQ', groupId: row.id });
     },
     replyJoin(allow) {
-      this.ws.send(JSON.stringify({ type: 'GROUP_JOIN_RES', requesterIp: this.incomingJoin.requesterIp, groupId: this.incomingJoin.groupId, allow }));
+      this.safeSend({ type: 'GROUP_JOIN_RES', requesterIp: this.incomingJoin.requesterIp, groupId: this.incomingJoin.groupId, allow });
       this.showJoinDialog = false;
     },
     cancelWait() {
-      if (this.targetIpForPin) this.ws.send(JSON.stringify({ type: 'CONNECT_CANCEL', targetIp: this.targetIpForPin, message: '对方取消了连接请求' }));
+      if (this.targetIpForPin) this.safeSend({ type: 'CONNECT_CANCEL', targetIp: this.targetIpForPin, message: '对方取消了连接请求' });
       this.clearWait();
     },
     clearWait() { this.showWaitDialog = false; clearTimeout(this.waitTimer); this.waitTimer = null; },
@@ -799,7 +813,7 @@ createApp({
       this.folderBrowse = null;
     },
     backToList() {
-      this.ws?.send(JSON.stringify({ type: 'DISCONNECT', message: `${this.deviceName} 已离开会话` }));
+      this.safeSend({ type: 'DISCONNECT', message: `${this.deviceName} 已离开会话` });
       this.forceBackToList();
     },
     forceBackToList() {
@@ -994,16 +1008,22 @@ createApp({
       this.preview = { visible:true, mode, name:row.name||'文件预览', url: mode==='docx' ? `/preview/docx?path=${encodeURIComponent(row.path)}` : row.path, text:'', row };
       if (mode === 'unsupported') { ElMessage.info('该文件类型暂不支持在线预览'); return; }
       if (mode === 'text') {
-        try { const r = await fetch(row.path); const txt = await r.text(); this.preview.text = txt.length > 200000 ? txt.slice(0,200000) + '\n\n…内容过长，仅预览前 200KB' : txt; }
-        catch { this.preview.text = '文本读取失败'; }
+        // 超过 5MB 的文本文件不加载，防止卡死浏览器
+        if (row.size > 5 * 1024 * 1024) {
+          this.preview.mode = 'unsupported';
+          ElMessage.warning('文本文件过大（' + this.formatSize(row.size) + '），请下载后查看'); return;
+        }
+        try { const r = await fetch(row.path); const txt = await r.text(); this.preview.text = txt.length > 200000 ? txt.slice(0,200000) + '\n\n\u2026\u5185\u5bb9\u8fc7\u957f\uff0c\u4ec5\u9884\u89c8\u524d 200KB' : txt; }
+        catch { this.preview.text = '\u6587\u672c\u8bfb\u53d6\u5931\u8d25'; }
       }
     },
 
     /* ── 聊天 ───────────────────────────────────────────────── */
     toggleChat() { this.chatOpen = !this.chatOpen; if (this.chatOpen) { this.unreadCount = 0; this.$nextTick(() => this.scrollChat()); } },
     sendChat() {
+      if (!this.isConnected || !this.wsReady) { ElMessage.warning('请先进入会话'); return; }
       const c = this.chatInput.trim(); if (!c) return;
-      this.ws?.send(JSON.stringify({ type:'CHAT_MSG', content:c }));
+      this.safeSend({ type: 'CHAT_MSG', content: c });
       this.chatInput = '';
     },
     scrollChat() { const el = this.$refs.chatMsgs; if (el) el.scrollTop = el.scrollHeight; },
@@ -1012,8 +1032,9 @@ createApp({
     /* ── 剪贴板共享 ─────────────────────────────────────────── */
     openClipDialog() { this.clipContent = ''; this.showClipDialog = true; },
     sendClip() {
+      if (!this.isConnected || !this.wsReady) { ElMessage.warning('请先进入会话'); return; }
       if (!this.clipContent.trim()) { ElMessage.warning('内容不能为空'); return; }
-      this.ws?.send(JSON.stringify({ type:'CLIP_SHARE', content:this.clipContent.trim() }));
+      this.safeSend({ type: 'CLIP_SHARE', content: this.clipContent.trim() });
       this.showClipDialog = false; ElMessage.success('已发送给所有成员');
     },
     async copyClip(text) {
