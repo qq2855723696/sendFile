@@ -36,6 +36,7 @@ lerna-debug.log*
 .env
 .env.local
 .env.*.local
+.npmrc
 
 # Electron builder 缓存
 .electron-builder-cache/
