@@ -66,7 +66,14 @@ function resolveUploadPath(filePath) {
   const d = path.resolve(UPLOAD_DIR, n);
   return d.startsWith(path.resolve(UPLOAD_DIR)) ? d : null;
 }
-function normalizeIp(raw) { return String(raw || '').replace('::ffff:', ''); }
+function normalizeIp(raw) {
+  let ip = String(raw || '');
+  // 去除 IPv4 映射的 IPv6 前缀（::ffff:127.0.0.1 → 127.0.0.1）
+  ip = ip.replace('::ffff:', '');
+  // 将 IPv6 本地回环地址转换为 IPv4（::1 → 127.0.0.1）
+  if (ip === '::1') ip = '127.0.0.1';
+  return ip;
+}
 function sendTo(ipAddr, payload) {
   const d = devices.get(ipAddr);
   if (d && d.ws && d.ws.readyState === WebSocket.OPEN) d.ws.send(JSON.stringify(payload));
