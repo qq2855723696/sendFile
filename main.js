@@ -6,13 +6,15 @@ const path = require('path');
 // ─── 启动 Express 服务 ───────────────────────────────────────
 // 在 Electron 主进程中直接 require server.js，服务随进程启动
 let serverStarted = false;
+let serverModule = null;
 function startServer() {
   if (serverStarted) return;
   serverStarted = true;
   try {
-    require('./server.js');
+    // server.js 会自动处理端口递增
+    serverModule = require('./server.js');
   } catch (err) {
-    console.error('[Electron] 服务启动失败:', err);
+    console.error('[Electron] 服务启动失败:', err.message);
   }
 }
 
@@ -39,9 +41,13 @@ function createWindow() {
   // 去掉默认菜单
   Menu.setApplicationMenu(null);
 
-  // 加载本地服务地址
+  // 加载本地服务地址（使用实际启动的端口）
   const PORT = Number(process.env.PORT || 3000);
-  mainWindow.loadURL(`http://localhost:${PORT}`);
+  // 等待服务启动后获取实际端口
+  setTimeout(() => {
+    const actualPort = serverModule && serverModule.port ? serverModule.port : PORT;
+    mainWindow.loadURL(`http://localhost:${actualPort}`);
+  }, 100);
 
   // 页面加载完毕后再显示窗口
   mainWindow.once('ready-to-show', () => {

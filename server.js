@@ -12,7 +12,7 @@ const mammoth = require('mammoth');
 const qrcode = require('qrcode');
 
 const app = express();
-const PORT = Number(process.env.PORT || 3000);
+let PORT = Number(process.env.PORT || 3000);
 const UPLOAD_DIR = path.join(__dirname, 'uploads');
 const CHUNK_DIR = path.join(UPLOAD_DIR, '.chunks');
 const MAX_FILE_SIZE = 500 * 1024 * 1024;
@@ -155,25 +155,67 @@ function requireSession(sessionId, uploaderIp) {
   return (s && s.members.has(ipAddr)) ? s : null;
 }
 
-const server = app.listen(PORT, function () {
-  console.log('\n[*] SendFile Service Started');
-  console.log('    Local: http://localhost:' + PORT);
-  console.log('    LAN:   http://' + ip.address() + ':' + PORT + '\n');
-});
-const wss = new WebSocket.Server({ server: server });
+// 启动服务器（支持端口自动递增）
+function startServer(port, originalPort = null) {
+  const server = app.listen(port, function () {
+    // 用 server.address() 验证是否真正绑定成功
+    // Windows/Electron 环境下 listen 回调有时会假触发，紧接着再抛 EADDRINUSE
+    const addr = server.address();
+    if (!addr) return;
 
-wss.on('connection', function (ws, req) {
-  const clientIp = normalizeIp(req.socket.remoteAddress);
-  ws.on('message', function (raw) {
-    try { handleSocketMessage(ws, clientIp, JSON.parse(raw)); }
-    catch (e) { sendTo(clientIp, { type: 'ERROR', message: '消息格式错误' }); }
+    PORT = addr.port;
+    const serverIp = normalizeIp(ip.address());
+
+    // 有端口切换时，先输出一行说明
+    if (originalPort !== null) {
+      console.log('[*] Port ' + originalPort + ' is in use, using port ' + PORT + ' instead');
+    }
+    console.log('\n[*] SendFile Service Started');
+    console.log('    Local: http://localhost:' + PORT);
+    console.log('    LAN:   http://' + serverIp + ':' + PORT + '\n');
+
+    // 服务启动成功后创建 WebSocket 服务器
+    const wss = new WebSocket.Server({ server: server });
+
+    wss.on('connection', function (ws, req) {
+      const clientIp = normalizeIp(req.socket.remoteAddress);
+      ws.on('message', function (raw) {
+        try { handleSocketMessage(ws, clientIp, JSON.parse(raw)); }
+        catch (e) { sendTo(clientIp, { type: 'ERROR', message: '消息格式错误' }); }
+      });
+      ws.on('close', function () {
+        if (devices.has(clientIp) && !isActiveSocket(clientIp, ws)) return;
+        clearPendingFor(clientIp); leaveSession(clientIp, getDeviceName(clientIp) + ' 已断开连接');
+        devices.delete(clientIp); broadcastState();
+      });
+    });
+
+    // 用 Object.assign 只停改属性而不替换对象，确保 Electron 中 require 拿到的引用可以看到更新
+    Object.assign(module.exports, { server: server, port: PORT, wss: wss });
   });
-  ws.on('close', function () {
-    if (devices.has(clientIp) && !isActiveSocket(clientIp, ws)) return;
-    clearPendingFor(clientIp); leaveSession(clientIp, getDeviceName(clientIp) + ' 已断开连接');
-    devices.delete(clientIp); broadcastState();
+
+  // 端口占用错误处理
+  server.on('error', function (err) {
+    if (err.code === 'EADDRINUSE') {
+      const nextPort = port + 1;
+      if (nextPort > 65535) {
+        console.error('[Error] No available ports found (tried up to 65535)');
+        process.exit(1);
+      }
+      server.close();
+      startServer(nextPort, originalPort === null ? port : originalPort);
+    } else {
+      console.error('[Error] Server error:', err.message);
+      process.exit(1);
+    }
   });
-});
+
+  return server;
+}
+
+// 启动服务，初始化导出对象（必须引用同一个对象，不能重赋值）
+module.exports = { app: app };
+const server = startServer(PORT);
 
 function handleSocketMessage(ws, clientIp, msg) {
   switch (msg.type) {
@@ -251,7 +293,8 @@ function handleSocketMessage(ws, clientIp, msg) {
 // QR code
 app.get('/qrcode', async function (req, res) {
   try {
-    const url = 'http://' + ip.address() + ':' + PORT;
+    const serverIp = normalizeIp(ip.address());
+    const url = 'http://' + serverIp + ':' + PORT;
     const dataUrl = await qrcode.toDataURL(url, { width: 280, margin: 2 });
     res.json({ url: url, dataUrl: dataUrl });
   } catch (e) { res.status(500).json({ error: 'QR code error' }); }
@@ -322,34 +365,58 @@ app.post('/begin-folder-batch', function (req, res) {
     if (!requireSession(sessionId, uploaderIp)) return res.status(400).json({ success: false, message: '会话已失效，请重新连接' });
     if (!batchId || !rootName || !Number.isInteger(fileCount) || fileCount <= 0) return res.status(400).json({ success: false, message: '文件夹批次参数无效' });
     if (folderBatches.has(batchId)) return res.status(400).json({ success: false, message: '文件夹批次已存在' });
-    folderBatches.set(batchId, { sessionId: sessionId, uploaderIp: uploaderIp, rootName: rootName, fileCount: fileCount, files: [] });
+    folderBatches.set(batchId, { sessionId: sessionId, uploaderIp: uploaderIp, rootName: rootName, fileCount: fileCount, files: [], createdAt: Date.now() });
     res.json({ success: true });
   } catch (e) { res.status(500).json({ success: false, message: '创建文件夹批次失败' }); }
 });
 
 // Upload complete (merge chunks)
-app.post('/upload-complete', function (req, res) {
+app.post('/upload-complete', async function (req, res) {
+  let tmpPath = null;
   try {
     const uploadId = String(req.body.uploadId || '').trim();
     const folderBatchId = String(req.body.folderBatchId || '').trim();
     const meta = chunkUploads.get(uploadId);
-    if (!meta) return res.status(400).json({ success: false, message: '上传任务不存在' });
+    if (!meta) return res.status(400).json({ success: false, message: '\u4e0a\u4f20\u4efb\u52a1\u4e0d\u5b58\u5728' });
     const session = requireSession(meta.sessionId, meta.uploaderIp);
-    if (!session) return res.status(400).json({ success: false, message: '会话已失效，请重新连接' });
+    if (!session) return res.status(400).json({ success: false, message: '\u4f1a\u8bdd\u5df2\u5931\u6548\uff0c\u8bf7\u91cd\u65b0\u8fde\u63a5' });
+
+    // 1. 先验证所有分片存在，避免合并一半失败
+    for (let i = 0; i < meta.totalChunks; i++) {
+      if (!fs.existsSync(path.join(CHUNK_DIR, uploadId, i + '.part')))
+        return res.status(400).json({ success: false, message: '\u5206\u7247\u7f3a\u5931\uff0c\u65e0\u6cd5\u5408\u5e76' });
+    }
+
+    // 2. 流式合并到临时文件（非阻塞，不卡事件循环）
     const mergedName = Date.now() + '_' + sanitizeName(meta.fileName);
     const mergedPath = path.join(UPLOAD_DIR, mergedName);
-    fs.writeFileSync(mergedPath, Buffer.alloc(0));
+    tmpPath = mergedPath + '.tmp';
+    const out = fs.createWriteStream(tmpPath);
     for (let i = 0; i < meta.totalChunks; i++) {
       const cp = path.join(CHUNK_DIR, uploadId, i + '.part');
-      if (!fs.existsSync(cp)) return res.status(400).json({ success: false, message: '分片缺失，无法合并' });
-      fs.appendFileSync(mergedPath, fs.readFileSync(cp));
+      await new Promise(function (resolve, reject) {
+        const rs = fs.createReadStream(cp);
+        rs.on('error', reject);
+        rs.on('end', resolve);
+        rs.pipe(out, { end: false });
+      });
     }
+    await new Promise(function (resolve, reject) {
+      out.on('error', reject);
+      out.on('finish', resolve);
+      out.end();
+    });
+
+    // 3. 原子重命名（避免下载到写了一半的文件）
+    fs.renameSync(tmpPath, mergedPath);
+    tmpPath = null; // 重命名成功，不再需要清理
+
     fs.rmSync(path.join(CHUNK_DIR, uploadId), { recursive: true, force: true });
     chunkUploads.delete(uploadId);
     notifySession(meta.sessionId, { type: 'UPLOAD_PROGRESS', uploadId: uploadId, uploaderIp: meta.uploaderIp, uploaderName: getDeviceName(meta.uploaderIp), fileName: meta.fileName, progress: 100, done: true });
     if (folderBatchId) {
       const batch = folderBatches.get(folderBatchId);
-      if (!batch || batch.sessionId !== meta.sessionId || batch.uploaderIp !== meta.uploaderIp) return res.status(400).json({ success: false, message: '文件夹批次无效或已过期' });
+      if (!batch || batch.sessionId !== meta.sessionId || batch.uploaderIp !== meta.uploaderIp) return res.status(400).json({ success: false, message: '\u6587\u4ef6\u5939\u6279\u6b21\u65e0\u6548\u6216\u5df2\u8fc7\u671f' });
       let relPath = String(meta.relativePath || meta.fileName).replace(/\\/g, '/');
       const rp = batch.rootName + '/';
       if (relPath.startsWith(rp)) relPath = relPath.slice(rp.length);
@@ -365,7 +432,11 @@ app.post('/upload-complete', function (req, res) {
     session.files.push({ kind: 'file', name: meta.relativePath || meta.fileName, path: '/files/' + mergedName, ip: meta.uploaderIp, uploaderName: getDeviceName(meta.uploaderIp), size: meta.fileSize || 0, fileType: meta.fileType || '', time: new Date().toLocaleString('zh-CN'), uploadedAt: Date.now() });
     notifySession(meta.sessionId, { type: 'FILE_LIST', list: session.files });
     broadcastState(); res.json({ success: true });
-  } catch (e) { res.status(500).json({ success: false, message: '文件合并失败' }); }
+  } catch (e) {
+    // 清理可能写了一半的临时文件
+    if (tmpPath) try { fs.unlinkSync(tmpPath); } catch (e2) { }
+    res.status(500).json({ success: false, message: '\u6587\u4ef6\u5408\u5e76\u5931\u8d25' });
+  }
 });
 
 // 删除文件
@@ -508,6 +579,12 @@ setInterval(function () {
         try { fs.rmSync(path.join(CHUNK_DIR, uploadId), { recursive: true, force: true }); } catch (e) { }
       }
     }
+    // 清理超时未完成的 folderBatches（上传失败时不会被删除，防止内存泄漏）
+    for (const [batchId, batch] of folderBatches.entries()) {
+      if (batch.createdAt && now - batch.createdAt > CHUNK_EXPIRE_MS) {
+        folderBatches.delete(batchId);
+      }
+    }
     // 清理磁盘上居孤的分片目录
     if (fs.existsSync(CHUNK_DIR)) {
       const dirs = fs.readdirSync(CHUNK_DIR);
@@ -524,5 +601,3 @@ setInterval(function () {
     }
   } catch (e) { }
 }, 30 * 60 * 1000);
-
-module.exports = { app: app, server: server };

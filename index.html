@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-CN" data-theme="light">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -13,14 +14,14 @@
       color-scheme: light;
       --bg: #eef2f7;
       --panel: #ffffff;
-      --panel-bg: rgba(255,255,255,.88);
+      --panel-bg: rgba(255, 255, 255, .88);
       --text: #172033;
       --muted: #667085;
       --line: #d9e1ec;
       --primary: #2563eb;
       --success: #059669;
       --danger: #dc2626;
-      --shadow: rgba(15,23,42,.08);
+      --shadow: rgba(15, 23, 42, .08);
       --dropzone-bg: #f8fbff;
       --stat-bg: #f8fafc;
       --empty-bg: #f8fafc;
@@ -29,18 +30,19 @@
       --chat-other: #f1f5f9;
       --chat-other-text: #172033;
     }
+
     [data-theme="dark"] {
       color-scheme: dark;
       --bg: #0f172a;
       --panel: #1e293b;
-      --panel-bg: rgba(30,41,59,.92);
+      --panel-bg: rgba(30, 41, 59, .92);
       --text: #e2e8f0;
       --muted: #94a3b8;
       --line: #334155;
       --primary: #3b82f6;
       --success: #10b981;
       --danger: #ef4444;
-      --shadow: rgba(0,0,0,.35);
+      --shadow: rgba(0, 0, 0, .35);
       --dropzone-bg: #1e293b;
       --stat-bg: #1e293b;
       --empty-bg: #1e293b;
@@ -51,1172 +53,1752 @@
     }
 
     /* ─── 全局 ──────────────────────────────────────────────── */
-    * { box-sizing: border-box; }
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       margin: 0;
       min-height: 100vh;
       color: var(--text);
-      background: linear-gradient(135deg,rgba(37,99,235,.10),transparent 36%),linear-gradient(315deg,rgba(5,150,105,.10),transparent 32%),var(--bg);
-      font-family: Inter,"Microsoft YaHei","PingFang SC",system-ui,sans-serif;
+      background: linear-gradient(135deg, rgba(37, 99, 235, .10), transparent 36%), linear-gradient(315deg, rgba(5, 150, 105, .10), transparent 32%), var(--bg);
+      font-family: Inter, "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
       transition: background .25s, color .25s;
     }
-    button, input { font: inherit; }
 
-    #app { width: min(1280px, calc(100vw - 32px)); margin: 0 auto; padding: 24px 0 48px; }
+    button,
+    input {
+      font: inherit;
+    }
+
+    #app {
+      width: min(1280px, calc(100vw - 32px));
+      margin: 0 auto;
+      padding: 24px 0 48px;
+    }
 
     /* ─── Header ────────────────────────────────────────────── */
-    .app-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 18px; flex-wrap: wrap; }
-    .title { margin: 0 0 4px; font-size: 28px; line-height: 1.2; }
-    .subtitle { margin: 0; color: var(--muted); font-size: 14px; }
-    .header-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-    .status-pill { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-bg); color: var(--muted); font-size: 14px; white-space: nowrap; }
-    .status-dot { width: 8px; height: 8px; border-radius: 999px; background: #94a3b8; }
-    .status-dot.online { background: var(--success); }
+    .app-header {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+    }
+
+    .title {
+      margin: 0 0 4px;
+      font-size: 28px;
+      line-height: 1.2;
+    }
+
+    .subtitle {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 36px;
+      padding: 0 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel-bg);
+      color: var(--muted);
+      font-size: 14px;
+      white-space: nowrap;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: #94a3b8;
+    }
+
+    .status-dot.online {
+      background: var(--success);
+    }
 
     /* ─── 布局 ──────────────────────────────────────────────── */
-    .layout { display: grid; grid-template-columns: 320px minmax(0,1fr); gap: 18px; align-items: start; }
-    .panel { overflow: hidden; border: 1px solid rgba(148,163,184,.30); border-radius: 10px; background: var(--panel-bg); box-shadow: 0 18px 45px var(--shadow); backdrop-filter: blur(10px); }
-    .panel-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 15px 18px; border-bottom: 1px solid var(--line); }
-    .panel-title { margin: 0; font-size: 16px; font-weight: 700; }
-    .panel-body { padding: 18px; }
-    .field { margin-bottom: 14px; }
-    .field label { display: block; margin-bottom: 6px; color: #344054; font-size: 13px; font-weight: 600; }
-    [data-theme="dark"] .field label { color: var(--muted); }
-    .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .layout {
+      display: grid;
+      grid-template-columns: 320px minmax(0, 1fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .panel {
+      overflow: hidden;
+      border: 1px solid rgba(148, 163, 184, .30);
+      border-radius: 10px;
+      background: var(--panel-bg);
+      box-shadow: 0 18px 45px var(--shadow);
+      backdrop-filter: blur(10px);
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 15px 18px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .panel-title {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    .panel-body {
+      padding: 18px;
+    }
+
+    .field {
+      margin-bottom: 14px;
+    }
+
+    .field label {
+      display: block;
+      margin-bottom: 6px;
+      color: #344054;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    [data-theme="dark"] .field label {
+      color: var(--muted);
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
 
     /* ─── 统计卡 ─────────────────────────────────────────────── */
-    .stats { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 12px; margin-bottom: 16px; }
-    .stat { padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--stat-bg); }
-    .stat-label { color: var(--muted); font-size: 12px; }
-    .stat-value { margin-top: 6px; font-size: 26px; font-weight: 800; color: var(--primary); }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .stat {
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--stat-bg);
+    }
+
+    .stat-label {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .stat-value {
+      margin-top: 6px;
+      font-size: 26px;
+      font-weight: 800;
+      color: var(--primary);
+    }
 
     /* ─── 空态 / Dropzone ────────────────────────────────────── */
-    .empty { display: grid; place-items: center; min-height: 160px; border: 1px dashed var(--line); border-radius: 8px; color: var(--muted); background: var(--empty-bg); text-align: center; }
-    .dropzone { border: 2px dashed #b7c5d8; border-radius: 8px; padding: 20px; margin-bottom: 14px; background: var(--dropzone-bg); cursor: pointer; transition: border-color .18s,background .18s,transform .18s; }
-    .dropzone:hover,.dropzone.active { border-color: var(--primary); background: rgba(37,99,235,.06); }
-    .dropzone.active { transform: translateY(-1px); }
-    .drop-title { margin-bottom: 4px; font-size: 15px; font-weight: 700; }
-    .drop-copy { color: var(--muted); font-size: 13px; }
+    .empty {
+      display: grid;
+      place-items: center;
+      min-height: 160px;
+      border: 1px dashed var(--line);
+      border-radius: 8px;
+      color: var(--muted);
+      background: var(--empty-bg);
+      text-align: center;
+    }
+
+    .dropzone {
+      border: 2px dashed #b7c5d8;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 14px;
+      background: var(--dropzone-bg);
+      cursor: pointer;
+      transition: border-color .18s, background .18s, transform .18s;
+    }
+
+    .dropzone:hover,
+    .dropzone.active {
+      border-color: var(--primary);
+      background: rgba(37, 99, 235, .06);
+    }
+
+    .dropzone.active {
+      transform: translateY(-1px);
+    }
+
+    .drop-title {
+      margin-bottom: 4px;
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .drop-copy {
+      color: var(--muted);
+      font-size: 13px;
+    }
 
     /* ─── 成员栏 ─────────────────────────────────────────────── */
-    .member-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; color: var(--muted); font-size: 13px; }
+    .member-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+      color: var(--muted);
+      font-size: 13px;
+    }
 
     /* ─── 搜索 + 批量操作栏 ─────────────────────────────────── */
-    .toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
-    .toolbar-right { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+
+    .toolbar-right {
+      margin-left: auto;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
 
     /* ─── 文件夹路径 ─────────────────────────────────────────── */
-    .folder-path { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
-    .path-text { color: var(--muted); font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .folder-path {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .path-text {
+      color: var(--muted);
+      font-size: 14px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
 
     /* ─── 预览 ──────────────────────────────────────────────── */
-    .preview-box { min-height: 220px; max-height: 72vh; overflow: auto; }
-    .preview-media { display: block; max-width: 100%; max-height: 68vh; margin: 0 auto; border-radius: 8px; background: var(--preview-bg); }
-    .preview-frame { width: 100%; height: 68vh; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
-    .preview-text { min-height: 260px; margin: 0; padding: 16px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--preview-bg); color: #e5e7eb; font: 13px/1.7 Consolas,"Microsoft YaHei",monospace; white-space: pre-wrap; word-break: break-word; }
-    .row-actions { display: inline-flex; align-items: center; gap: 6px; flex-wrap: nowrap; white-space: nowrap; }
+    .preview-box {
+      min-height: 220px;
+      max-height: 72vh;
+      overflow: auto;
+    }
+
+    .preview-media {
+      display: block;
+      max-width: 100%;
+      max-height: 68vh;
+      margin: 0 auto;
+      border-radius: 8px;
+      background: var(--preview-bg);
+    }
+
+    .preview-frame {
+      width: 100%;
+      height: 68vh;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .preview-text {
+      min-height: 260px;
+      margin: 0;
+      padding: 16px;
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--preview-bg);
+      color: #e5e7eb;
+      font: 13px/1.7 Consolas, "Microsoft YaHei", monospace;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .row-actions {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: nowrap;
+      white-space: nowrap;
+    }
 
     /* ─── 图片缩略图 ────────────────────────────────────────── */
-    .thumb { width: 36px; height: 36px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid var(--line); display: block; }
-    .thumb-placeholder { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+    .thumb {
+      width: 36px;
+      height: 36px;
+      object-fit: cover;
+      border-radius: 4px;
+      cursor: pointer;
+      border: 1px solid var(--line);
+      display: block;
+    }
+
+    .thumb-placeholder {
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+    }
 
     /* ─── 排序按钮 ───────────────────────────────────────────── */
-    .sort-btn { cursor: pointer; color: var(--muted); font-size: 12px; padding: 2px 6px; border-radius: 4px; border: 1px solid var(--line); background: transparent; white-space: nowrap; }
-    .sort-btn.active { color: var(--primary); border-color: var(--primary); background: rgba(37,99,235,.07); }
-    .sort-btn:hover { border-color: var(--primary); color: var(--primary); }
+    .sort-btn {
+      cursor: pointer;
+      color: var(--muted);
+      font-size: 12px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid var(--line);
+      background: transparent;
+      white-space: nowrap;
+    }
+
+    .sort-btn.active {
+      color: var(--primary);
+      border-color: var(--primary);
+      background: rgba(37, 99, 235, .07);
+    }
+
+    .sort-btn:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
 
     /* ─── 上传速度 ───────────────────────────────────────────── */
-    .upload-speed { margin-top: 4px; font-size: 12px; color: var(--muted); text-align: right; }
+    .upload-speed {
+      margin-top: 4px;
+      font-size: 12px;
+      color: var(--muted);
+      text-align: right;
+    }
 
     /* ─── 聊天面板 ──────────────────────────────────────────── */
-    .chat-drawer { position: fixed; top: 0; right: 0; width: 320px; height: 100vh; background: var(--panel); border-left: 1px solid var(--line); box-shadow: -4px 0 24px var(--shadow); display: flex; flex-direction: column; z-index: 900; transform: translateX(100%); transition: transform .28s cubic-bezier(.4,0,.2,1); }
-    .chat-drawer.open { transform: translateX(0); }
-    .chat-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid var(--line); font-weight: 700; flex-shrink: 0; }
-    .chat-msgs { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
-    .chat-bubble { max-width: 82%; padding: 8px 12px; border-radius: 12px; font-size: 13px; line-height: 1.5; word-break: break-word; }
-    .chat-bubble.me { align-self: flex-end; background: var(--chat-me); color: #fff; border-bottom-right-radius: 3px; }
-    .chat-bubble.other { align-self: flex-start; background: var(--chat-other); color: var(--chat-other-text); border-bottom-left-radius: 3px; }
-    .chat-bubble .sender { font-size: 11px; opacity: .7; margin-bottom: 3px; }
-    .chat-bubble .time { font-size: 10px; opacity: .55; margin-top: 3px; text-align: right; }
-    .chat-input-row { display: flex; gap: 8px; padding: 12px; border-top: 1px solid var(--line); flex-shrink: 0; }
-    .chat-badge { display: inline-block; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: var(--danger); color: #fff; font-size: 11px; line-height: 18px; text-align: center; vertical-align: top; margin-left: 4px; }
+    .chat-drawer {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: 320px;
+      height: 100vh;
+      background: var(--panel);
+      border-left: 1px solid var(--line);
+      box-shadow: -4px 0 24px var(--shadow);
+      display: flex;
+      flex-direction: column;
+      z-index: 900;
+      transform: translateX(100%);
+      transition: transform .28s cubic-bezier(.4, 0, .2, 1);
+    }
+
+    .chat-drawer.open {
+      transform: translateX(0);
+    }
+
+    .chat-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .chat-msgs {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .chat-bubble {
+      max-width: 82%;
+      padding: 8px 12px;
+      border-radius: 12px;
+      font-size: 13px;
+      line-height: 1.5;
+      word-break: break-word;
+    }
+
+    .chat-bubble.me {
+      align-self: flex-end;
+      background: var(--chat-me);
+      color: #fff;
+      border-bottom-right-radius: 3px;
+    }
+
+    .chat-bubble.other {
+      align-self: flex-start;
+      background: var(--chat-other);
+      color: var(--chat-other-text);
+      border-bottom-left-radius: 3px;
+    }
+
+    .chat-bubble .sender {
+      font-size: 11px;
+      opacity: .7;
+      margin-bottom: 3px;
+    }
+
+    .chat-bubble .time {
+      font-size: 10px;
+      opacity: .55;
+      margin-top: 3px;
+      text-align: right;
+    }
+
+    .chat-input-row {
+      display: flex;
+      gap: 8px;
+      padding: 12px;
+      border-top: 1px solid var(--line);
+      flex-shrink: 0;
+    }
+
+    .chat-badge {
+      display: inline-block;
+      min-width: 18px;
+      height: 18px;
+      padding: 0 4px;
+      border-radius: 9px;
+      background: var(--danger);
+      color: #fff;
+      font-size: 11px;
+      line-height: 18px;
+      text-align: center;
+      vertical-align: top;
+      margin-left: 4px;
+    }
 
     /* ─── 上传进度通知（他人进度） ───────────────────────────── */
-    .upload-notifs { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
-    .upload-notif { padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--stat-bg); font-size: 12px; }
-    .upload-notif .notif-label { color: var(--muted); margin-bottom: 4px; }
+    .upload-notifs {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+
+    .upload-notif {
+      padding: 8px 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--stat-bg);
+      font-size: 12px;
+    }
+
+    .upload-notif .notif-label {
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
 
     /* ─── 深色模式下 Element Plus 覆盖 ─────────────────────── */
-    [data-theme="dark"] .el-table { --el-table-bg-color: #1e293b; --el-table-tr-bg-color: #1e293b; --el-table-row-hover-bg-color: #334155; --el-table-header-bg-color: #1e293b; --el-table-border-color: #334155; --el-table-text-color: #e2e8f0; --el-table-header-text-color: #94a3b8; }
-    [data-theme="dark"] .el-input__wrapper { background: #0f172a; box-shadow: 0 0 0 1px #334155 inset; }
-    [data-theme="dark"] .el-input__inner { color: #e2e8f0; }
-    [data-theme="dark"] .el-select__wrapper { background: #0f172a; box-shadow: 0 0 0 1px #334155 inset; }
-    [data-theme="dark"] .el-tabs__item { color: #94a3b8; }
-    [data-theme="dark"] .el-tabs__item.is-active { color: #3b82f6; }
-    [data-theme="dark"] .el-tabs__active-bar { background: #3b82f6; }
-    [data-theme="dark"] .el-tabs__nav-wrap::after { background: #334155; }
-    [data-theme="dark"] .el-dialog { --el-dialog-bg-color: #1e293b; --el-dialog-border-radius: 10px; }
-    [data-theme="dark"] .el-dialog__title { color: #e2e8f0; }
-    [data-theme="dark"] .el-dialog__body { color: #e2e8f0; }
-    [data-theme="dark"] .el-tag.el-tag--info { background: #334155; border-color: #475569; color: #94a3b8; }
+    [data-theme="dark"] .el-table {
+      --el-table-bg-color: #1e293b;
+      --el-table-tr-bg-color: #1e293b;
+      --el-table-row-hover-bg-color: #334155;
+      --el-table-header-bg-color: #1e293b;
+      --el-table-border-color: #334155;
+      --el-table-text-color: #e2e8f0;
+      --el-table-header-text-color: #94a3b8;
+    }
 
-    .el-button { border-radius: 7px !important; }
-    .el-card, .el-input__wrapper, .el-select__wrapper { border-radius: 8px !important; }
+    [data-theme="dark"] .el-input__wrapper {
+      background: #0f172a;
+      box-shadow: 0 0 0 1px #334155 inset;
+    }
+
+    [data-theme="dark"] .el-input__inner {
+      color: #e2e8f0;
+    }
+
+    [data-theme="dark"] .el-select__wrapper {
+      background: #0f172a;
+      box-shadow: 0 0 0 1px #334155 inset;
+    }
+
+    [data-theme="dark"] .el-tabs__item {
+      color: #94a3b8;
+    }
+
+    [data-theme="dark"] .el-tabs__item.is-active {
+      color: #3b82f6;
+    }
+
+    [data-theme="dark"] .el-tabs__active-bar {
+      background: #3b82f6;
+    }
+
+    [data-theme="dark"] .el-tabs__nav-wrap::after {
+      background: #334155;
+    }
+
+    [data-theme="dark"] .el-dialog {
+      --el-dialog-bg-color: #1e293b;
+      --el-dialog-border-radius: 10px;
+    }
+
+    [data-theme="dark"] .el-dialog__title {
+      color: #e2e8f0;
+    }
+
+    [data-theme="dark"] .el-dialog__body {
+      color: #e2e8f0;
+    }
+
+    [data-theme="dark"] .el-tag.el-tag--info {
+      background: #334155;
+      border-color: #475569;
+      color: #94a3b8;
+    }
+
+    .el-button {
+      border-radius: 7px !important;
+    }
+
+    .el-card,
+    .el-input__wrapper,
+    .el-select__wrapper {
+      border-radius: 8px !important;
+    }
 
     /* ─── 移动端 ─────────────────────────────────────────────── */
     @media (max-width: 900px) {
-      #app { width: calc(100vw - 20px); padding-top: 14px; padding-bottom: 80px; }
-      .app-header, .layout { display: block; }
-      .panel { margin-bottom: 14px; }
-      .stats { grid-template-columns: repeat(3,1fr); }
-      .chat-drawer { width: 100vw; }
-      .layout > aside { display: none; }
+      #app {
+        width: calc(100vw - 20px);
+        padding-top: 14px;
+        padding-bottom: 80px;
+      }
+
+      .app-header,
+      .layout {
+        display: block;
+      }
+
+      .panel {
+        margin-bottom: 14px;
+      }
+
+      .stats {
+        grid-template-columns: repeat(3, 1fr);
+      }
+
+      .chat-drawer {
+        width: 100vw;
+      }
+
+      .layout>aside {
+        display: none;
+      }
     }
+
     @media (max-width: 600px) {
-      .stats { grid-template-columns: 1fr; }
-      .toolbar { flex-direction: column; align-items: stretch; }
-      .toolbar-right { margin-left: 0; }
+      .stats {
+        grid-template-columns: 1fr;
+      }
+
+      .toolbar {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .toolbar-right {
+        margin-left: 0;
+      }
     }
   </style>
 </head>
+
 <body>
-<div id="app">
-  <input id="fileInput" type="file" multiple hidden @change="handleFiles">
-  <input id="folderInput" type="file" webkitdirectory hidden @change="handleFiles">
+  <div id="app">
+    <input id="fileInput" type="file" multiple hidden @change="handleFiles">
+    <input id="folderInput" type="file" webkitdirectory hidden @change="handleFiles">
 
-  <!-- ─── Header ──────────────────────────────────────────── -->
-  <header class="app-header">
-    <div>
-      <h1 class="title">📡 SendFile</h1>
-      <p class="subtitle">局域网文件快传 · 扫码直连 · 断点续传 · 实时聊天</p>
-    </div>
-    <div class="header-right">
-      <el-button size="small" @click="showQrDialog = true" :disabled="!localOnline">
-        📱 扫码连接
-      </el-button>
-      <el-button size="small" @click="showHistoryDialog = true">
-        🕐 历史记录
-      </el-button>
-      <el-button size="small" @click="requestNotifyPermission" :type="notifyPermission === 'granted' ? 'success' : ''" :title="notifyPermission === 'granted' ? '桌面通知已开启' : '点击开启桌面通知'">
-        {{ notifyPermission === 'granted' ? '🔔 通知已开' : '🔕 开启通知' }}
-      </el-button>
-      <el-button size="small" @click="toggleDark">
-        {{ darkMode ? '☀️ 亮色' : '🌙 深色' }}
-      </el-button>
-      <div class="status-pill">
-        <span class="status-dot" :class="{ online: localOnline }"></span>
-        <span>{{ localOnline ? `在线：${deviceName}` : '当前未上线' }}</span>
+    <!-- ─── Header ──────────────────────────────────────────── -->
+    <header class="app-header">
+      <div>
+        <h1 class="title">📡 SendFile</h1>
+        <p class="subtitle">局域网文件快传 · 扫码直连 · 断点续传 · 实时聊天</p>
       </div>
-    </div>
-  </header>
-
-  <!-- ─── 主布局 ────────────────────────────────────────────── -->
-  <main class="layout">
-    <!-- 左侧：本机设置 -->
-    <aside class="panel">
-      <div class="panel-header">
-        <h2 class="panel-title">本机设置</h2>
-        <el-tag :type="wsReady ? 'success' : 'info'" effect="plain">{{ wsReady ? '已连接' : '连接中' }}</el-tag>
+      <div class="header-right">
+        <el-button size="small" @click="showQrDialog = true" :disabled="!localOnline">
+          📱 扫码连接
+        </el-button>
+        <el-button size="small" @click="showHistoryDialog = true">
+          🕐 历史记录
+        </el-button>
+        <el-button v-if="notifyPermission === 'granted' && notifyEnabled" size="small" type="success"
+          @click="disableNotify" title="通知已开启，点击关闭">
+          🔔 通知已开
+        </el-button>
+        <el-button v-else size="small" @click="requestNotifyPermission"
+          :title="notifyPermission === 'denied' ? '通知权限被阻止，点击查看解决方案' : '点击开启桌面通知'">
+          🔕 开启通知
+        </el-button>
+        <el-button size="small" @click="toggleDark">
+          {{ darkMode ? '☀️ 亮色' : '🌙 深色' }}
+        </el-button>
+        <div class="status-pill">
+          <span class="status-dot" :class="{ online: localOnline }"></span>
+          <span>{{ localOnline ? `在线：${deviceName}` : '当前未上线' }}</span>
+        </div>
       </div>
-      <div class="panel-body">
-        <form @submit.prevent="deviceOnline">
-          <div class="field">
-            <label>设备名称</label>
-            <el-input v-model="deviceName" placeholder="例如：办公室电脑" clearable :disabled="localOnline"></el-input>
-          </div>
-          <div class="field">
-            <label>连接 PIN</label>
-            <el-input v-model="pinCode" placeholder="留空表示无需 PIN" maxlength="12" show-password :disabled="localOnline"></el-input>
-          </div>
-          <div class="field">
-            <label>状态</label>
-            <el-select v-model="deviceStatus" style="width:100%" :disabled="!localOnline" @change="updateMyStatus">
-              <el-option label="在线" value="online"></el-option>
-              <el-option label="忙碌" value="busy"></el-option>
-              <el-option label="离开" value="away"></el-option>
-            </el-select>
-          </div>
-          <div class="actions">
-            <el-button v-if="!localOnline" type="primary" native-type="submit" :loading="loading" style="flex:1">上线设备</el-button>
-            <el-button v-else type="danger" @click="deviceOffline" :loading="loading" style="flex:1">下线设备</el-button>
-          </div>
-        </form>
-      </div>
-    </aside>
+    </header>
 
-    <!-- 右侧：会话大厅 / 文件仓库 -->
-    <section class="panel">
-
-      <!-- 大厅 -->
-      <template v-if="!isConnected">
+    <!-- ─── 主布局 ────────────────────────────────────────────── -->
+    <main class="layout">
+      <!-- 左侧：本机设置 -->
+      <aside class="panel">
         <div class="panel-header">
-          <h2 class="panel-title">会话大厅</h2>
-          <el-button size="small" @click="refreshSocket">刷新连接</el-button>
+          <h2 class="panel-title">本机设置</h2>
+          <el-tag :type="wsReady ? 'success' : 'info'" effect="plain">{{ wsReady ? '已连接' : '连接中' }}</el-tag>
         </div>
         <div class="panel-body">
-          <div class="stats">
-            <div class="stat"><div class="stat-label">在线设备</div><div class="stat-value">{{ radar.onlineCount }}</div></div>
-            <div class="stat"><div class="stat-label">活跃会话</div><div class="stat-value">{{ radar.activeSessionCount }}</div></div>
-            <div class="stat"><div class="stat-label">传输任务</div><div class="stat-value">{{ radar.activeTransferCount }}</div></div>
-          </div>
-          <el-tabs v-model="activeTab">
-            <el-tab-pane label="可连接设备" name="devices">
-              <div v-if="!localOnline" class="empty">请先上线本机设备</div>
-              <div v-else-if="deviceList.length === 0" class="empty">暂无可连接设备</div>
-              <el-table v-else :data="deviceList" border stripe height="340">
-                <el-table-column label="设备" min-width="180">
-                  <template #default="{ row }">
-                    <strong>{{ row.name }}</strong>
-                    <el-tag size="small" :type="statusType(row.status)" style="margin-left:6px">{{ statusText(row.status) }}</el-tag>
-                  </template>
-                </el-table-column>
-                <el-table-column label="IP 地址" prop="ip" min-width="140"></el-table-column>
-                <el-table-column label="安全" width="90" align="center">
-                  <template #default="{ row }">{{ row.hasPin ? '🔒 PIN' : '🔓 开放' }}</template>
-                </el-table-column>
-                <el-table-column label="操作" width="90" align="center">
-                  <template #default="{ row }">
-                    <el-button type="primary" size="small" @click="connectDevice(row)">连接</el-button>
-                  </template>
-                </el-table-column>
-              </el-table>
-            </el-tab-pane>
-            <el-tab-pane label="加入会话" name="groups">
-              <div v-if="!localOnline" class="empty">请先上线本机设备</div>
-              <div v-else-if="groupList.length === 0" class="empty">暂无可加入的会话</div>
-              <el-table v-else :data="groupList" border stripe height="340">
-                <el-table-column label="会话 ID" prop="id" width="110"></el-table-column>
-                <el-table-column label="成员" min-width="200">
-                  <template #default="{ row }">{{ row.members.map(m => m.name).join('、') }}</template>
-                </el-table-column>
-                <el-table-column label="人数" prop="memberCount" width="80" align="center"></el-table-column>
-                <el-table-column label="操作" width="110" align="center">
-                  <template #default="{ row }">
-                    <el-button type="success" size="small" @click="requestJoinGroup(row)">申请加入</el-button>
-                  </template>
-                </el-table-column>
-              </el-table>
-            </el-tab-pane>
-            <el-tab-pane label="网络概览" name="radar">
-              <el-table :data="radar.devices" border stripe height="340">
-                <el-table-column label="设备" prop="name" min-width="180"></el-table-column>
-                <el-table-column label="状态" width="100" align="center">
-                  <template #default="{ row }"><el-tag size="small" :type="statusType(row.status)">{{ statusText(row.status) }}</el-tag></template>
-                </el-table-column>
-                <el-table-column label="会话中" width="90" align="center">
-                  <template #default="{ row }">{{ row.inSession ? '✅' : '—' }}</template>
-                </el-table-column>
-                <el-table-column label="IP" prop="ip" min-width="140"></el-table-column>
-              </el-table>
-            </el-tab-pane>
-          </el-tabs>
-        </div>
-      </template>
-
-      <!-- 会话 / 文件仓库 -->
-      <template v-else>
-        <div class="panel-header">
-          <h2 class="panel-title">文件仓库 <span style="font-size:13px;font-weight:400;color:var(--muted)">#{{ currentSessionId }}</span></h2>
-          <div class="actions">
-            <el-button size="small" @click="openClipDialog">📋 剪贴板</el-button>
-            <el-button size="small" :type="chatOpen ? 'primary' : ''" @click="toggleChat">
-              💬 聊天<span v-if="unreadCount" class="chat-badge">{{ unreadCount }}</span>
-            </el-button>
-            <el-button size="small" type="danger" plain @click="backToList">离开</el-button>
-          </div>
-        </div>
-        <div class="panel-body">
-          <!-- 成员 -->
-          <div class="member-row">
-            <span>成员：</span>
-            <el-tag v-for="m in currentSessionMembers" :key="m.ip" :type="statusType(m.status)" effect="plain">{{ m.name }}</el-tag>
-          </div>
-
-          <!-- 他人上传进度 -->
-          <div v-if="otherUploads.length" class="upload-notifs">
-            <div v-for="u in otherUploads" :key="u.uploadId" class="upload-notif">
-              <div class="notif-label">{{ u.uploaderName }} 正在上传：{{ u.fileName }}</div>
-              <el-progress :percentage="u.progress" :stroke-width="6" :show-text="false"></el-progress>
+          <form @submit.prevent="deviceOnline">
+            <div class="field">
+              <label>设备名称</label>
+              <el-input v-model="deviceName" placeholder="例如：办公室电脑" clearable :disabled="localOnline"></el-input>
             </div>
+            <div class="field">
+              <label>连接 PIN</label>
+              <el-input v-model="pinCode" placeholder="留空表示无需 PIN" maxlength="12" show-password
+                :disabled="localOnline"></el-input>
+            </div>
+            <div class="field">
+              <label>状态</label>
+              <el-select v-model="deviceStatus" style="width:100%" :disabled="!localOnline" @change="updateMyStatus">
+                <el-option label="在线" value="online"></el-option>
+                <el-option label="忙碌" value="busy"></el-option>
+                <el-option label="离开" value="away"></el-option>
+              </el-select>
+            </div>
+            <div class="actions">
+              <el-button v-if="!localOnline" type="primary" native-type="submit" :loading="loading"
+                style="flex:1">上线设备</el-button>
+              <el-button v-else type="danger" @click="deviceOffline" :loading="loading" style="flex:1">下线设备</el-button>
+            </div>
+          </form>
+        </div>
+      </aside>
+
+      <!-- 右侧：会话大厅 / 文件仓库 -->
+      <section class="panel">
+
+        <!-- 大厅 -->
+        <template v-if="!isConnected">
+          <div class="panel-header">
+            <h2 class="panel-title">会话大厅</h2>
+            <el-button size="small" @click="refreshSocket">刷新连接</el-button>
           </div>
-
-          <!-- 上传区 -->
-          <div class="dropzone" :class="{ active: dragActive }" @click="chooseFiles"
-            @dragenter.prevent="onDragEnter" @dragover.prevent="onDragOver"
-            @dragleave.prevent="onDragLeave" @drop.prevent="onDropFiles">
-            <div class="drop-title">拖拽文件到这里上传</div>
-            <div class="drop-copy">支持多文件、文件夹选择，大文件断点续传，最大 500MB/个</div>
-            <el-progress v-if="uploading" :percentage="uploadProgress" :stroke-width="10" style="margin-top:12px"></el-progress>
-            <div v-if="uploading && uploadSpeedText" class="upload-speed">⚡ {{ uploadSpeedText }}</div>
-          </div>
-
-          <div class="actions" style="margin-bottom:14px">
-            <el-button type="primary" @click.stop="chooseFiles">选择文件</el-button>
-            <el-button type="success" @click.stop="chooseFolder">选择文件夹</el-button>
-            <el-button v-if="selectedKeys.length" type="warning" @click="batchDownload">
-              批量下载 ({{ selectedKeys.length }})
-            </el-button>
-            <el-button v-if="selectedKeys.length" type="danger" plain @click="selectedKeys = []">取消选择</el-button>
-          </div>
-
-          <!-- 空态 -->
-          <div v-if="fileList.length === 0" class="empty">当前会话还没有共享文件</div>
-
-          <template v-else>
-            <!-- 搜索栏 -->
-            <div class="toolbar">
-              <el-input v-model="fileSearch" placeholder="搜索文件名…" clearable style="width:200px" prefix-icon="Search"></el-input>
-              <!-- 排序 -->
-              <button class="sort-btn" :class="{ active: sortField==='name' }" @click="toggleSort('name')">名称 {{ sortField==='name' ? (sortDir==='asc' ? '↑' : '↓') : '' }}</button>
-              <button class="sort-btn" :class="{ active: sortField==='size' }" @click="toggleSort('size')">大小 {{ sortField==='size' ? (sortDir==='asc' ? '↑' : '↓') : '' }}</button>
-              <button class="sort-btn" :class="{ active: sortField==='uploadedAt' }" @click="toggleSort('uploadedAt')">时间 {{ sortField==='uploadedAt' ? (sortDir==='asc' ? '↑' : '↓') : '' }}</button>
-              <div class="toolbar-right">
-                <el-button size="small" @click="toggleSelectAll">
-                  {{ selectedKeys.length === filteredFileList.length && filteredFileList.length > 0 ? '取消全选' : '全选' }}
-                </el-button>
+          <div class="panel-body">
+            <div class="stats">
+              <div class="stat">
+                <div class="stat-label">在线设备</div>
+                <div class="stat-value">{{ radar.onlineCount }}</div>
+              </div>
+              <div class="stat">
+                <div class="stat-label">活跃会话</div>
+                <div class="stat-value">{{ radar.activeSessionCount }}</div>
+              </div>
+              <div class="stat">
+                <div class="stat-label">传输任务</div>
+                <div class="stat-value">{{ radar.activeTransferCount }}</div>
               </div>
             </div>
-
-            <!-- 文件夹浏览 -->
-            <div v-if="folderBrowse" class="folder-path">
-              <div class="path-text">{{ currentFolderEntry?.name }}{{ folderBrowse.subPath ? ` / ${folderBrowse.subPath}` : '' }}</div>
-              <div class="actions">
-                <el-button @click="folderBrowseUp">返回上级</el-button>
-                <el-button type="success" @click="downloadFolderZip(currentFolderEntry)">下载 ZIP</el-button>
-              </div>
-            </div>
-
-            <el-table v-if="folderBrowse" :data="folderBrowseRows" border stripe>
-              <el-table-column label="名称" min-width="240">
-                <template #default="{ row }">
-                  <el-button v-if="row.type === 'folder'" link type="primary" @click="enterSubFolder(row.name)">[文件夹] {{ row.name }}</el-button>
-                  <span v-else>{{ row.name }}</span>
-                </template>
-              </el-table-column>
-              <el-table-column label="类型" width="120" align="center">
-                <template #default="{ row }">{{ row.type === 'folder' ? '目录' : fileKindText(row) }}</template>
-              </el-table-column>
-              <el-table-column label="大小" width="100" align="center">
-                <template #default="{ row }">{{ row.type === 'folder' ? '-' : fileSizeText(row) }}</template>
-              </el-table-column>
-              <el-table-column label="操作" width="150" align="center">
-                <template #default="{ row }">
-                  <span v-if="row.type === 'file'" class="row-actions">
-                    <el-button type="primary" size="small" @click="previewFile(row)">预览</el-button>
-                    <el-button type="success" size="small" @click="downloadFile(row)">下载</el-button>
-                  </span>
-                  <span v-else>目录</span>
-                </template>
-              </el-table-column>
-            </el-table>
-
-            <el-table v-else :data="filteredFileList" border stripe @selection-change="onSelectionChange">
-              <el-table-column type="selection" width="46"></el-table-column>
-              <!-- 缩略图列 -->
-              <el-table-column label="" width="52" align="center">
-                <template #default="{ row }">
-                  <img v-if="isImageFile(row)" :src="row.path" class="thumb" @click="previewFile(row)" :alt="row.name" loading="lazy">
-                  <div v-else class="thumb-placeholder">{{ row.kind === 'folder' ? '📁' : fileIcon(row) }}</div>
-                </template>
-              </el-table-column>
-              <el-table-column label="名称" min-width="200">
-                <template #default="{ row }">
-                  <el-button v-if="row.kind === 'folder'" link type="primary" @click="openFolder(row)">[文件夹] {{ row.name }}</el-button>
-                  <span v-else style="cursor:pointer" @click="previewFile(row)">{{ row.name }}</span>
-                </template>
-              </el-table-column>
-              <el-table-column label="类型" width="70" align="center">
-                <template #default="{ row }">{{ row.kind === 'folder' ? '文件夹' : fileKindText(row) }}</template>
-              </el-table-column>
-              <el-table-column label="大小" width="100" align="center">
-                <template #default="{ row }">{{ row.kind === 'folder' ? `${(row.items||[]).length} 项` : fileSizeText(row) }}</template>
-              </el-table-column>
-              <el-table-column label="上传者" prop="uploaderName" width="120"></el-table-column>
-              <el-table-column label="时间" prop="time" width="165"></el-table-column>
-              <el-table-column label="操作" width="240" align="center">
-                <template #default="{ row }">
-                  <span class="row-actions">
-                    <template v-if="row.kind === 'folder'">
-                      <el-button type="primary" size="small" @click="openFolder(row)">打开</el-button>
-                      <el-button type="success" size="small" @click="downloadFolderZip(row)">ZIP</el-button>
+            <el-tabs v-model="activeTab">
+              <el-tab-pane label="可连接设备" name="devices">
+                <div v-if="!localOnline" class="empty">请先上线本机设备</div>
+                <div v-else-if="deviceList.length === 0" class="empty">暂无可连接设备</div>
+                <el-table v-else :data="deviceList" border stripe height="340">
+                  <el-table-column label="设备" min-width="180">
+                    <template #default="{ row }">
+                      <strong>{{ row.name }}</strong>
+                      <el-tag size="small" :type="statusType(row.status)" style="margin-left:6px">{{
+                        statusText(row.status) }}</el-tag>
                     </template>
-                    <template v-else>
+                  </el-table-column>
+                  <el-table-column label="IP 地址" prop="ip" min-width="140"></el-table-column>
+                  <el-table-column label="安全" width="90" align="center">
+                    <template #default="{ row }">{{ row.hasPin ? '🔒 PIN' : '🔓 开放' }}</template>
+                  </el-table-column>
+                  <el-table-column label="操作" width="90" align="center">
+                    <template #default="{ row }">
+                      <el-button type="primary" size="small" @click="connectDevice(row)">连接</el-button>
+                    </template>
+                  </el-table-column>
+                </el-table>
+              </el-tab-pane>
+              <el-tab-pane label="加入会话" name="groups">
+                <div v-if="!localOnline" class="empty">请先上线本机设备</div>
+                <div v-else-if="groupList.length === 0" class="empty">暂无可加入的会话</div>
+                <el-table v-else :data="groupList" border stripe height="340">
+                  <el-table-column label="会话 ID" prop="id" width="110"></el-table-column>
+                  <el-table-column label="成员" min-width="200">
+                    <template #default="{ row }">{{ row.members.map(m => m.name).join('、') }}</template>
+                  </el-table-column>
+                  <el-table-column label="人数" prop="memberCount" width="80" align="center"></el-table-column>
+                  <el-table-column label="操作" width="110" align="center">
+                    <template #default="{ row }">
+                      <el-button type="success" size="small" @click="requestJoinGroup(row)">申请加入</el-button>
+                    </template>
+                  </el-table-column>
+                </el-table>
+              </el-tab-pane>
+              <el-tab-pane label="网络概览" name="radar">
+                <el-table :data="radar.devices" border stripe height="340">
+                  <el-table-column label="设备" prop="name" min-width="180"></el-table-column>
+                  <el-table-column label="状态" width="100" align="center">
+                    <template #default="{ row }"><el-tag size="small" :type="statusType(row.status)">{{
+                        statusText(row.status) }}</el-tag></template>
+                  </el-table-column>
+                  <el-table-column label="会话中" width="90" align="center">
+                    <template #default="{ row }">{{ row.inSession ? '✅' : '—' }}</template>
+                  </el-table-column>
+                  <el-table-column label="IP" prop="ip" min-width="140"></el-table-column>
+                </el-table>
+              </el-tab-pane>
+            </el-tabs>
+          </div>
+        </template>
+
+        <!-- 会话 / 文件仓库 -->
+        <template v-else>
+          <div class="panel-header">
+            <h2 class="panel-title">文件仓库 <span style="font-size:13px;font-weight:400;color:var(--muted)">#{{
+                currentSessionId }}</span></h2>
+            <div class="actions">
+              <el-button size="small" @click="openClipDialog">📋 剪贴板</el-button>
+              <el-button size="small" :type="chatOpen ? 'primary' : ''" @click="toggleChat">
+                💬 聊天<span v-if="unreadCount" class="chat-badge">{{ unreadCount }}</span>
+              </el-button>
+              <el-button size="small" type="danger" plain @click="backToList">离开</el-button>
+            </div>
+          </div>
+          <div class="panel-body">
+            <!-- 成员 -->
+            <div class="member-row">
+              <span>成员：</span>
+              <el-tag v-for="m in currentSessionMembers" :key="m.ip" :type="statusType(m.status)" effect="plain">{{
+                m.name }}</el-tag>
+            </div>
+
+            <!-- 他人上传进度 -->
+            <div v-if="otherUploads.length" class="upload-notifs">
+              <div v-for="u in otherUploads" :key="u.uploadId" class="upload-notif">
+                <div class="notif-label">{{ u.uploaderName }} 正在上传：{{ u.fileName }}</div>
+                <el-progress :percentage="u.progress" :stroke-width="6" :show-text="false"></el-progress>
+              </div>
+            </div>
+
+            <!-- 上传区 -->
+            <div class="dropzone" :class="{ active: dragActive }" @click="chooseFiles" @dragenter.prevent="onDragEnter"
+              @dragover.prevent="onDragOver" @dragleave.prevent="onDragLeave" @drop.prevent="onDropFiles">
+              <div class="drop-title">拖拽文件到这里上传</div>
+              <div class="drop-copy">支持多文件、文件夹选择，大文件断点续传，最大 500MB/个</div>
+              <el-progress v-if="uploading" :percentage="uploadProgress" :stroke-width="10"
+                style="margin-top:12px"></el-progress>
+              <div v-if="uploading && uploadSpeedText" class="upload-speed">⚡ {{ uploadSpeedText }}</div>
+            </div>
+
+            <div class="actions" style="margin-bottom:14px">
+              <el-button type="primary" @click.stop="chooseFiles">选择文件</el-button>
+              <el-button type="success" @click.stop="chooseFolder">选择文件夹</el-button>
+              <el-button v-if="selectedKeys.length" type="warning" @click="batchDownload">
+                批量下载 ({{ selectedKeys.length }})
+              </el-button>
+              <el-button v-if="selectedKeys.length" type="danger" plain @click="selectedKeys = []">取消选择</el-button>
+            </div>
+
+            <!-- 空态 -->
+            <div v-if="fileList.length === 0" class="empty">当前会话还没有共享文件</div>
+
+            <template v-else>
+              <!-- 搜索栏 -->
+              <div class="toolbar">
+                <el-input v-model="fileSearch" placeholder="搜索文件名…" clearable style="width:200px"
+                  prefix-icon="Search"></el-input>
+                <!-- 排序 -->
+                <button class="sort-btn" :class="{ active: sortField==='name' }" @click="toggleSort('name')">名称 {{
+                  sortField==='name' ? (sortDir==='asc' ? '↑' : '↓') : '' }}</button>
+                <button class="sort-btn" :class="{ active: sortField==='size' }" @click="toggleSort('size')">大小 {{
+                  sortField==='size' ? (sortDir==='asc' ? '↑' : '↓') : '' }}</button>
+                <button class="sort-btn" :class="{ active: sortField==='uploadedAt' }"
+                  @click="toggleSort('uploadedAt')">时间 {{ sortField==='uploadedAt' ? (sortDir==='asc' ? '↑' : '↓') : ''
+                  }}</button>
+                <div class="toolbar-right">
+                  <el-button size="small" @click="toggleSelectAll">
+                    {{ selectedKeys.length === filteredFileList.length && filteredFileList.length > 0 ? '取消全选' : '全选' }}
+                  </el-button>
+                </div>
+              </div>
+
+              <!-- 文件夹浏览 -->
+              <div v-if="folderBrowse" class="folder-path">
+                <div class="path-text">{{ currentFolderEntry?.name }}{{ folderBrowse.subPath ? ` /
+                  ${folderBrowse.subPath}` : '' }}</div>
+                <div class="actions">
+                  <el-button @click="folderBrowseUp">返回上级</el-button>
+                  <el-button type="success" @click="downloadFolderZip(currentFolderEntry)">下载 ZIP</el-button>
+                </div>
+              </div>
+
+              <el-table v-if="folderBrowse" :data="folderBrowseRows" border stripe>
+                <el-table-column label="名称" min-width="240">
+                  <template #default="{ row }">
+                    <el-button v-if="row.type === 'folder'" link type="primary" @click="enterSubFolder(row.name)">[文件夹]
+                      {{ row.name }}</el-button>
+                    <span v-else>{{ row.name }}</span>
+                  </template>
+                </el-table-column>
+                <el-table-column label="类型" width="120" align="center">
+                  <template #default="{ row }">{{ row.type === 'folder' ? '目录' : fileKindText(row) }}</template>
+                </el-table-column>
+                <el-table-column label="大小" width="100" align="center">
+                  <template #default="{ row }">{{ row.type === 'folder' ? '-' : fileSizeText(row) }}</template>
+                </el-table-column>
+                <el-table-column label="操作" width="150" align="center">
+                  <template #default="{ row }">
+                    <span v-if="row.type === 'file'" class="row-actions">
                       <el-button type="primary" size="small" @click="previewFile(row)">预览</el-button>
                       <el-button type="success" size="small" @click="downloadFile(row)">下载</el-button>
-                    </template>
-                    <el-button size="small" @click="copyFileLink(row)" title="复制下载链接">🔗</el-button>
-                    <el-button v-if="row.ip === myRealIp" type="warning" size="small" @click="openRenameDialog(row)">改名</el-button>
-                    <el-button v-if="row.ip === myRealIp" type="danger" size="small" @click="deleteFile(row)">删除</el-button>
-                  </span>
-                </template>
-              </el-table-column>
-            </el-table>
-          </template>
+                    </span>
+                    <span v-else>目录</span>
+                  </template>
+                </el-table-column>
+              </el-table>
+
+              <el-table v-else :data="filteredFileList" border stripe @selection-change="onSelectionChange">
+                <el-table-column type="selection" width="46"></el-table-column>
+                <!-- 缩略图列 -->
+                <el-table-column label="" width="52" align="center">
+                  <template #default="{ row }">
+                    <img v-if="isImageFile(row)" :src="row.path" class="thumb" @click="previewFile(row)" :alt="row.name"
+                      loading="lazy">
+                    <div v-else class="thumb-placeholder">{{ row.kind === 'folder' ? '📁' : fileIcon(row) }}</div>
+                  </template>
+                </el-table-column>
+                <el-table-column label="名称" min-width="200">
+                  <template #default="{ row }">
+                    <el-button v-if="row.kind === 'folder'" link type="primary" @click="openFolder(row)">[文件夹] {{
+                      row.name }}</el-button>
+                    <span v-else style="cursor:pointer" @click="previewFile(row)">{{ row.name }}</span>
+                  </template>
+                </el-table-column>
+                <el-table-column label="类型" width="70" align="center">
+                  <template #default="{ row }">{{ row.kind === 'folder' ? '文件夹' : fileKindText(row) }}</template>
+                </el-table-column>
+                <el-table-column label="大小" width="100" align="center">
+                  <template #default="{ row }">{{ row.kind === 'folder' ? `${(row.items||[]).length} 项` :
+                    fileSizeText(row) }}</template>
+                </el-table-column>
+                <el-table-column label="上传者" prop="uploaderName" width="120"></el-table-column>
+                <el-table-column label="时间" prop="time" width="165"></el-table-column>
+                <el-table-column label="操作" width="240" align="center">
+                  <template #default="{ row }">
+                    <span class="row-actions">
+                      <template v-if="row.kind === 'folder'">
+                        <el-button type="primary" size="small" @click="openFolder(row)">打开</el-button>
+                        <el-button type="success" size="small" @click="downloadFolderZip(row)">ZIP</el-button>
+                      </template>
+                      <template v-else>
+                        <el-button type="primary" size="small" @click="previewFile(row)">预览</el-button>
+                        <el-button type="success" size="small" @click="downloadFile(row)">下载</el-button>
+                      </template>
+                      <el-button size="small" @click="copyFileLink(row)" title="复制下载链接">🔗</el-button>
+                      <el-button v-if="row.ip === myRealIp" type="warning" size="small"
+                        @click="openRenameDialog(row)">改名</el-button>
+                      <el-button v-if="row.ip === myRealIp" type="danger" size="small"
+                        @click="deleteFile(row)">删除</el-button>
+                    </span>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </template>
+          </div>
+        </template>
+
+      </section>
+    </main>
+
+    <!-- ─── 聊天抽屉 ──────────────────────────────────────────── -->
+    <div class="chat-drawer" :class="{ open: chatOpen }">
+      <div class="chat-header">
+        <span>💬 会话聊天</span>
+        <el-button size="small" circle @click="chatOpen = false">✕</el-button>
+      </div>
+      <div class="chat-msgs" ref="chatMsgs">
+        <div v-if="chatMessages.length === 0" style="color:var(--muted);text-align:center;padding:24px;font-size:13px">
+          暂无消息，发条消息打个招呼吧～</div>
+        <div v-for="m in chatMessages" :key="m.timestamp + m.fromIp" class="chat-bubble"
+          :class="m.fromIp === myRealIp ? 'me' : 'other'">
+          <div v-if="m.fromIp !== myRealIp" class="sender">{{ m.fromName }}</div>
+          <div>{{ m.content }}</div>
+          <div class="time">{{ formatTime(m.timestamp) }}</div>
         </div>
-      </template>
-
-    </section>
-  </main>
-
-  <!-- ─── 聊天抽屉 ──────────────────────────────────────────── -->
-  <div class="chat-drawer" :class="{ open: chatOpen }">
-    <div class="chat-header">
-      <span>💬 会话聊天</span>
-      <el-button size="small" circle @click="chatOpen = false">✕</el-button>
-    </div>
-    <div class="chat-msgs" ref="chatMsgs">
-      <div v-if="chatMessages.length === 0" style="color:var(--muted);text-align:center;padding:24px;font-size:13px">暂无消息，发条消息打个招呼吧～</div>
-      <div v-for="m in chatMessages" :key="m.timestamp + m.fromIp" class="chat-bubble" :class="m.fromIp === myRealIp ? 'me' : 'other'">
-        <div v-if="m.fromIp !== myRealIp" class="sender">{{ m.fromName }}</div>
-        <div>{{ m.content }}</div>
-        <div class="time">{{ formatTime(m.timestamp) }}</div>
+      </div>
+      <div class="chat-input-row">
+        <el-input v-model="chatInput" placeholder="输入消息…" @keydown.enter.prevent="sendChat" style="flex:1"></el-input>
+        <el-button type="primary" @click="sendChat">发送</el-button>
       </div>
     </div>
-    <div class="chat-input-row">
-      <el-input v-model="chatInput" placeholder="输入消息…" @keydown.enter.prevent="sendChat" style="flex:1"></el-input>
-      <el-button type="primary" @click="sendChat">发送</el-button>
-    </div>
+
+    <!-- ─── 各类弹窗 ──────────────────────────────────────────── -->
+
+    <!-- PIN -->
+    <el-dialog v-model="showPinDialog" title="输入 PIN" width="400px">
+      <form @submit.prevent="submitPin">
+        <p>设备「{{ targetDeviceName }}」需要 PIN 码才能连接。</p>
+        <el-input v-model="inputPin" placeholder="请输入 PIN" show-password autofocus></el-input>
+      </form>
+      <template #footer>
+        <el-button @click="showPinDialog = false">取消</el-button>
+        <el-button type="primary" @click="submitPin">确认连接</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 连接请求 -->
+    <el-dialog v-model="showConnectDialog" title="连接请求" width="400px" :close-on-click-modal="false">
+      <p>设备「{{ incomingRequest.fromName }}」请求与你建立文件传输会话。</p>
+      <template #footer>
+        <el-button @click="replyConnect(false)">拒绝</el-button>
+        <el-button type="primary" @click="replyConnect(true)">同意</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 入群申请 -->
+    <el-dialog v-model="showJoinDialog" title="入群申请" width="400px" :close-on-click-modal="false">
+      <p>设备「{{ incomingJoin.requesterName }}」申请加入当前会话。</p>
+      <template #footer>
+        <el-button @click="replyJoin(false)">拒绝</el-button>
+        <el-button type="primary" @click="replyJoin(true)">同意</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 等待确认 -->
+    <el-dialog v-model="showWaitDialog" title="等待确认" width="340px" :close-on-click-modal="false">
+      <p>连接请求已发送，正在等待对方确认…</p>
+      <template #footer><el-button @click="cancelWait">取消请求</el-button></template>
+    </el-dialog>
+
+    <!-- 文件预览 -->
+    <el-dialog v-model="preview.visible" :title="preview.name || '文件预览'" width="80vw" top="5vh" destroy-on-close>
+      <div class="preview-box">
+        <img v-if="preview.mode === 'image'" :src="preview.url" class="preview-media" alt="preview">
+        <video v-else-if="preview.mode === 'video'" :src="preview.url" class="preview-media" controls></video>
+        <audio v-else-if="preview.mode === 'audio'" :src="preview.url" controls style="width:100%"></audio>
+        <iframe v-else-if="preview.mode === 'pdf' || preview.mode === 'docx'" :src="preview.url"
+          class="preview-frame"></iframe>
+        <pre v-else-if="preview.mode === 'text'" class="preview-text">{{ preview.text }}</pre>
+        <div v-else class="empty">该文件类型暂不支持在线预览</div>
+      </div>
+      <template #footer>
+        <el-button @click="downloadFile(preview.row)" type="success">下载文件</el-button>
+        <el-button @click="preview.visible = false">关闭</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 二维码 -->
+    <el-dialog v-model="showQrDialog" title="📱 手机扫码直连" width="360px">
+      <div style="text-align:center;padding:10px 0">
+        <div v-if="qrLoading" style="height:200px;display:grid;place-items:center;color:var(--muted)">生成中…</div>
+        <template v-else>
+          <img :src="qrData.dataUrl" style="width:240px;height:240px;border-radius:8px" alt="QR">
+          <div style="margin-top:12px;font-size:13px;color:var(--muted)">{{ qrData.url }}</div>
+          <div style="margin-top:6px;font-size:12px;color:var(--muted)">确保手机与电脑在同一局域网内</div>
+        </template>
+      </div>
+    </el-dialog>
+
+    <!-- 剪贴板共享 -->
+    <el-dialog v-model="showClipDialog" title="📋 剪贴板快传" width="480px">
+      <el-input v-model="clipContent" type="textarea" :rows="6" placeholder="粘贴文字、代码或链接…"></el-input>
+      <template #footer>
+        <el-button @click="showClipDialog = false">取消</el-button>
+        <el-button type="primary" @click="sendClip">发送给所有成员</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 收到的剪贴板 -->
+    <el-dialog v-model="showClipReceive" title="📋 收到剪贴板内容" width="480px">
+      <div style="margin-bottom:8px;color:var(--muted);font-size:13px">来自：{{ receivedClip.fromName }}</div>
+      <pre class="preview-text" style="max-height:300px">{{ receivedClip.content }}</pre>
+      <template #footer>
+        <el-button type="primary" @click="copyClip(receivedClip.content)">复制内容</el-button>
+        <el-button @click="showClipReceive = false">关闭</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 文件重命名 -->
+    <el-dialog v-model="showRenameDialog" title="✏️ 重命名文件" width="400px">
+      <el-input v-model="renameValue" placeholder="请输入新文件名" autofocus @keydown.enter.prevent="submitRename"></el-input>
+      <template #footer>
+        <el-button @click="showRenameDialog = false">取消</el-button>
+        <el-button type="primary" @click="submitRename">确认</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 传输历史 -->
+    <el-dialog v-model="showHistoryDialog" title="🕐 传输历史记录" width="600px">
+      <div v-if="transferHistory.length === 0" class="empty" style="min-height:100px">暂无历史记录</div>
+      <el-table v-else :data="transferHistory" border stripe max-height="360">
+        <el-table-column label="文件名" prop="name" min-width="180"></el-table-column>
+        <el-table-column label="大小" width="100" align="center">
+          <template #default="{ row }">{{ formatSize(row.size) }}</template>
+        </el-table-column>
+        <el-table-column label="时间" prop="time" width="165"></el-table-column>
+        <el-table-column label="状态" width="80" align="center">
+          <template #default="{ row }"><el-tag size="small" :type="row.ok ? 'success' : 'danger'">{{ row.ok ? '完成' :
+              '失败' }}</el-tag></template>
+        </el-table-column>
+      </el-table>
+      <template #footer>
+        <el-button type="danger" plain @click="clearHistory">清空历史</el-button>
+        <el-button @click="showHistoryDialog = false">关闭</el-button>
+      </template>
+    </el-dialog>
+
   </div>
 
-  <!-- ─── 各类弹窗 ──────────────────────────────────────────── -->
 
-  <!-- PIN -->
-  <el-dialog v-model="showPinDialog" title="输入 PIN" width="400px">
-    <form @submit.prevent="submitPin">
-      <p>设备「{{ targetDeviceName }}」需要 PIN 码才能连接。</p>
-      <el-input v-model="inputPin" placeholder="请输入 PIN" show-password autofocus></el-input>
-    </form>
-    <template #footer>
-      <el-button @click="showPinDialog = false">取消</el-button>
-      <el-button type="primary" @click="submitPin">确认连接</el-button>
-    </template>
-  </el-dialog>
+  <script>
+    const { createApp } = Vue;
+    const { ElMessage, ElMessageBox } = ElementPlus;
 
-  <!-- 连接请求 -->
-  <el-dialog v-model="showConnectDialog" title="连接请求" width="400px" :close-on-click-modal="false">
-    <p>设备「{{ incomingRequest.fromName }}」请求与你建立文件传输会话。</p>
-    <template #footer>
-      <el-button @click="replyConnect(false)">拒绝</el-button>
-      <el-button type="primary" @click="replyConnect(true)">同意</el-button>
-    </template>
-  </el-dialog>
-
-  <!-- 入群申请 -->
-  <el-dialog v-model="showJoinDialog" title="入群申请" width="400px" :close-on-click-modal="false">
-    <p>设备「{{ incomingJoin.requesterName }}」申请加入当前会话。</p>
-    <template #footer>
-      <el-button @click="replyJoin(false)">拒绝</el-button>
-      <el-button type="primary" @click="replyJoin(true)">同意</el-button>
-    </template>
-  </el-dialog>
-
-  <!-- 等待确认 -->
-  <el-dialog v-model="showWaitDialog" title="等待确认" width="340px" :close-on-click-modal="false">
-    <p>连接请求已发送，正在等待对方确认…</p>
-    <template #footer><el-button @click="cancelWait">取消请求</el-button></template>
-  </el-dialog>
-
-  <!-- 文件预览 -->
-  <el-dialog v-model="preview.visible" :title="preview.name || '文件预览'" width="80vw" top="5vh" destroy-on-close>
-    <div class="preview-box">
-      <img v-if="preview.mode === 'image'" :src="preview.url" class="preview-media" alt="preview">
-      <video v-else-if="preview.mode === 'video'" :src="preview.url" class="preview-media" controls></video>
-      <audio v-else-if="preview.mode === 'audio'" :src="preview.url" controls style="width:100%"></audio>
-      <iframe v-else-if="preview.mode === 'pdf' || preview.mode === 'docx'" :src="preview.url" class="preview-frame"></iframe>
-      <pre v-else-if="preview.mode === 'text'" class="preview-text">{{ preview.text }}</pre>
-      <div v-else class="empty">该文件类型暂不支持在线预览</div>
-    </div>
-    <template #footer>
-      <el-button @click="downloadFile(preview.row)" type="success">下载文件</el-button>
-      <el-button @click="preview.visible = false">关闭</el-button>
-    </template>
-  </el-dialog>
-
-  <!-- 二维码 -->
-  <el-dialog v-model="showQrDialog" title="📱 手机扫码直连" width="360px">
-    <div style="text-align:center;padding:10px 0">
-      <div v-if="qrLoading" style="height:200px;display:grid;place-items:center;color:var(--muted)">生成中…</div>
-      <template v-else>
-        <img :src="qrData.dataUrl" style="width:240px;height:240px;border-radius:8px" alt="QR">
-        <div style="margin-top:12px;font-size:13px;color:var(--muted)">{{ qrData.url }}</div>
-        <div style="margin-top:6px;font-size:12px;color:var(--muted)">确保手机与电脑在同一局域网内</div>
-      </template>
-    </div>
-  </el-dialog>
-
-  <!-- 剪贴板共享 -->
-  <el-dialog v-model="showClipDialog" title="📋 剪贴板快传" width="480px">
-    <el-input v-model="clipContent" type="textarea" :rows="6" placeholder="粘贴文字、代码或链接…"></el-input>
-    <template #footer>
-      <el-button @click="showClipDialog = false">取消</el-button>
-      <el-button type="primary" @click="sendClip">发送给所有成员</el-button>
-    </template>
-  </el-dialog>
-
-  <!-- 收到的剪贴板 -->
-  <el-dialog v-model="showClipReceive" title="📋 收到剪贴板内容" width="480px">
-    <div style="margin-bottom:8px;color:var(--muted);font-size:13px">来自：{{ receivedClip.fromName }}</div>
-    <pre class="preview-text" style="max-height:300px">{{ receivedClip.content }}</pre>
-    <template #footer>
-      <el-button type="primary" @click="copyClip(receivedClip.content)">复制内容</el-button>
-      <el-button @click="showClipReceive = false">关闭</el-button>
-    </template>
-  </el-dialog>
-
-  <!-- 文件重命名 -->
-  <el-dialog v-model="showRenameDialog" title="✏️ 重命名文件" width="400px">
-    <el-input v-model="renameValue" placeholder="请输入新文件名" autofocus @keydown.enter.prevent="submitRename"></el-input>
-    <template #footer>
-      <el-button @click="showRenameDialog = false">取消</el-button>
-      <el-button type="primary" @click="submitRename">确认</el-button>
-    </template>
-  </el-dialog>
-
-  <!-- 传输历史 -->
-  <el-dialog v-model="showHistoryDialog" title="🕐 传输历史记录" width="600px">
-    <div v-if="transferHistory.length === 0" class="empty" style="min-height:100px">暂无历史记录</div>
-    <el-table v-else :data="transferHistory" border stripe max-height="360">
-      <el-table-column label="文件名" prop="name" min-width="180"></el-table-column>
-      <el-table-column label="大小" width="100" align="center">
-        <template #default="{ row }">{{ formatSize(row.size) }}</template>
-      </el-table-column>
-      <el-table-column label="时间" prop="time" width="165"></el-table-column>
-      <el-table-column label="状态" width="80" align="center">
-        <template #default="{ row }"><el-tag size="small" :type="row.ok ? 'success' : 'danger'">{{ row.ok ? '完成' : '失败' }}</el-tag></template>
-      </el-table-column>
-    </el-table>
-    <template #footer>
-      <el-button type="danger" plain @click="clearHistory">清空历史</el-button>
-      <el-button @click="showHistoryDialog = false">关闭</el-button>
-    </template>
-  </el-dialog>
-
-</div>
-
-
-<script>
-const { createApp } = Vue;
-const { ElMessage, ElMessageBox } = ElementPlus;
-
-/* ─ 生成稳定 uploadId（断点续传用） ─ */
-function fileFingerprint(file) {
-  let h = 0;
-  const key = `${file.name}_${file.size}_${file.lastModified}`;
-  for (let i = 0; i < key.length; i++) { h = Math.imul(31, h) + key.charCodeAt(i) | 0; }
-  return `sf_${Math.abs(h).toString(36)}_${file.size.toString(36)}`;
-}
-function createUuid() {
-  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
-}
-
-createApp({
-  data() {
-    return {
-      /* WebSocket */
-      ws: null, wsReady: false, reconnectTimer: null,
-      /* 设备 */
-      loading: false, deviceActionPending: false, deviceActionTimer: null,
-      lastDeviceActionAt: 0, localOnline: false,
-      deviceName: localStorage.getItem('sendfile.deviceName') || '',
-      pinCode: '', deviceStatus: 'online', myRealIp: '',
-      /* 大厅 */
-      deviceList: [], groupList: [],
-      radar: { onlineCount:0, activeSessionCount:0, activeTransferCount:0, devices:[], sessions:[] },
-      activeTab: 'devices',
-      /* 会话 */
-      isConnected: false, currentSessionId: '', currentSessionMembers: [], fileList: [],
-      fileSearch: '', selectedKeys: [],
-      sortField: 'uploadedAt', sortDir: 'desc',
-      /* 弹窗 */
-      showPinDialog: false, showConnectDialog: false, showJoinDialog: false,
-      showWaitDialog: false, showQrDialog: false, showClipDialog: false,
-      showClipReceive: false, showRenameDialog: false, showHistoryDialog: false,
-      /* 连接 */
-      targetIpForPin: '', targetDeviceName: '', inputPin: '',
-      incomingRequest: {}, incomingJoin: {}, waitTimer: null,
-      /* 上传 */
-      uploading: false, uploadProgress: 0, uploadSpeedText: '',
-      _uploadStartTime: 0, _uploadedBytes: 0,
-      dragActive: false, dragDepth: 0,
-      /* 他人上传进度 */
-      otherUploads: [],
-      /* 文件夹浏览 */
-      folderBrowse: null,
-      /* 预览 */
-      preview: { visible:false, mode:'', name:'', url:'', text:'', row:null },
-      /* 聊天 */
-      chatOpen: false, chatMessages: [], chatInput: '', unreadCount: 0,
-      /* 剪贴板 */
-      clipContent: '', receivedClip: {},
-      /* 重命名 */
-      renameTarget: null, renameValue: '',
-      /* 二维码 */
-      qrLoading: false, qrData: {},
-      /* 历史记录 */
-      transferHistory: JSON.parse(localStorage.getItem('sendfile.history') || '[]'),
-      /* 深色模式 */
-      darkMode: localStorage.getItem('sendfile.dark') !== null
-        ? localStorage.getItem('sendfile.dark') === '1'
-        : window.matchMedia('(prefers-color-scheme: dark)').matches,
-      /* 桌面通知 */
-      notifyPermission: (typeof Notification !== 'undefined') ? Notification.permission : 'denied',
-      /* 常量 */
-      CHUNK_SIZE: 2 * 1024 * 1024,
-      CHUNK_CONCURRENCY: 4,
-      MAX_FILE_SIZE: 500 * 1024 * 1024,
-      MAX_TOTAL_UPLOAD_SIZE: 2 * 1024 * 1024 * 1024
-    };
-  },
-
-  computed: {
-    currentFolderEntry() {
-      if (!this.folderBrowse) return null;
-      return this.fileList.find(f => f.kind === 'folder' && f.id === this.folderBrowse.folderId) || null;
-    },
-    folderBrowseRows() {
-      const e = this.currentFolderEntry;
-      return e?.items ? this.buildFolderBrowseRows(e.items, this.folderBrowse.subPath) : [];
-    },
-    filteredFileList() {
-      const q = this.fileSearch.trim().toLowerCase();
-      let list = q ? this.fileList.filter(f => (f.name || '').toLowerCase().includes(q)) : this.fileList.slice();
-      // 排序
-      const field = this.sortField;
-      const dir = this.sortDir === 'asc' ? 1 : -1;
-      list.sort((a, b) => {
-        let av = a[field], bv = b[field];
-        if (field === 'name') { av = (av || '').toLowerCase(); bv = (bv || '').toLowerCase(); return av < bv ? -dir : av > bv ? dir : 0; }
-        return ((av || 0) - (bv || 0)) * dir;
-      });
-      return list;
+    /* ─ 生成稳定 uploadId（断点续传用） ─ */
+    function fileFingerprint(file) {
+      let h = 0;
+      const key = `${file.name}_${file.size}_${file.lastModified}`;
+      for (let i = 0; i < key.length; i++) { h = Math.imul(31, h) + key.charCodeAt(i) | 0; }
+      return `sf_${Math.abs(h).toString(36)}_${file.size.toString(36)}`;
     }
-  },
-
-  watch: {
-    showQrDialog(v) { if (v) this.loadQrCode(); },
-    chatOpen(v) { if (v) { this.unreadCount = 0; this.$nextTick(() => this.scrollChat()); } },
-    darkMode(v) {
-      document.documentElement.setAttribute('data-theme', v ? 'dark' : 'light');
-      localStorage.setItem('sendfile.dark', v ? '1' : '0');
+    function createUuid() {
+      if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+      return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
     }
-  },
 
-  mounted() {
-    document.documentElement.setAttribute('data-theme', this.darkMode ? 'dark' : 'light');
-    this.connectSocket();
-    // 监听系统主题变化（只在未手动设置时生效）
-    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
-      if (localStorage.getItem('sendfile.dark') === null) {
-        this.darkMode = e.matches;
-      }
-    });
-  },
+    createApp({
+      data() {
+        return {
+          /* WebSocket */
+          ws: null, wsReady: false, reconnectTimer: null,
+          /* 设备 */
+          loading: false, deviceActionPending: false, deviceActionTimer: null,
+          lastDeviceActionAt: 0, localOnline: false,
+          deviceName: localStorage.getItem('sendfile.deviceName') || '',
+          pinCode: '', deviceStatus: 'online', myRealIp: '',
+          /* 大厅 */
+          deviceList: [], groupList: [],
+          radar: { onlineCount: 0, activeSessionCount: 0, activeTransferCount: 0, devices: [], sessions: [] },
+          activeTab: 'devices',
+          /* 会话 */
+          isConnected: false, currentSessionId: '', currentSessionMembers: [], fileList: [],
+          fileSearch: '', selectedKeys: [],
+          sortField: 'uploadedAt', sortDir: 'desc',
+          /* 弹窗 */
+          showPinDialog: false, showConnectDialog: false, showJoinDialog: false,
+          showWaitDialog: false, showQrDialog: false, showClipDialog: false,
+          showClipReceive: false, showRenameDialog: false, showHistoryDialog: false,
+          /* 连接 */
+          targetIpForPin: '', targetDeviceName: '', inputPin: '',
+          incomingRequest: {}, incomingJoin: {}, waitTimer: null,
+          /* 上传 */
+          uploading: false, uploadProgress: 0, uploadSpeedText: '',
+          _uploadStartTime: 0, _uploadedBytes: 0,
+          dragActive: false, dragDepth: 0,
+          /* 他人上传进度 */
+          otherUploads: [],
+          /* 文件夹浏览 */
+          folderBrowse: null,
+          /* 预览 */
+          preview: { visible: false, mode: '', name: '', url: '', text: '', row: null },
+          /* 聊天 */
+          chatOpen: false, chatMessages: [], chatInput: '', unreadCount: 0,
+          /* 剪贴板 */
+          clipContent: '', receivedClip: {},
+          /* 重命名 */
+          renameTarget: null, renameValue: '',
+          /* 二维码 */
+          qrLoading: false, qrData: {},
+          /* 历史记录 */
+          transferHistory: JSON.parse(localStorage.getItem('sendfile.history') || '[]'),
+          /* 深色模式 */
+          darkMode: localStorage.getItem('sendfile.dark') !== null
+            ? localStorage.getItem('sendfile.dark') === '1'
+            : window.matchMedia('(prefers-color-scheme: dark)').matches,
+          /* 桌面通知 */
+          notifyPermission: (typeof Notification !== 'undefined') ? Notification.permission : 'denied',
+          // 本地开关：只有系统权限已授权 且 用户没有主动关闭时才为 true
+          notifyEnabled: (typeof Notification !== 'undefined') && Notification.permission === 'granted' && localStorage.getItem('sendfile.notify') !== '0',
+          /* 常量 */
+          CHUNK_SIZE: 2 * 1024 * 1024,
+          CHUNK_CONCURRENCY: 4,
+          MAX_FILE_SIZE: 500 * 1024 * 1024,
+          MAX_TOTAL_UPLOAD_SIZE: 2 * 1024 * 1024 * 1024
+        };
+      },
 
-  methods: {
-    /* ── WebSocket ─────────────────────────────────────────── */
-    connectSocket() {
-      clearTimeout(this.reconnectTimer); this.reconnectTimer = null;
-      const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-      if (this.ws && [WebSocket.OPEN, WebSocket.CONNECTING].includes(this.ws.readyState)) return;
-      this.ws = new WebSocket(`${proto}://${location.host}`);
-      const sock = this.ws;
-      this.ws.onopen = () => { this.wsReady = true; if (this.localOnline) this.sendOnline(false); };
-      this.ws.onclose = () => {
-        if (this.ws === sock) { this.wsReady = false; this.ws = null; }
-        // 断线时若在会话中，重置会话状态
-        if (this.isConnected) {
+      computed: {
+        currentFolderEntry() {
+          if (!this.folderBrowse) return null;
+          return this.fileList.find(f => f.kind === 'folder' && f.id === this.folderBrowse.folderId) || null;
+        },
+        folderBrowseRows() {
+          const e = this.currentFolderEntry;
+          return e?.items ? this.buildFolderBrowseRows(e.items, this.folderBrowse.subPath) : [];
+        },
+        filteredFileList() {
+          const q = this.fileSearch.trim().toLowerCase();
+          let list = q ? this.fileList.filter(f => (f.name || '').toLowerCase().includes(q)) : this.fileList.slice();
+          // 排序
+          const field = this.sortField;
+          const dir = this.sortDir === 'asc' ? 1 : -1;
+          list.sort((a, b) => {
+            let av = a[field], bv = b[field];
+            if (field === 'name') { av = (av || '').toLowerCase(); bv = (bv || '').toLowerCase(); return av < bv ? -dir : av > bv ? dir : 0; }
+            return ((av || 0) - (bv || 0)) * dir;
+          });
+          return list;
+        }
+      },
+
+      watch: {
+        showQrDialog(v) { if (v) this.loadQrCode(); },
+        chatOpen(v) { if (v) { this.unreadCount = 0; this.$nextTick(() => this.scrollChat()); } },
+        darkMode(v) {
+          document.documentElement.setAttribute('data-theme', v ? 'dark' : 'light');
+          localStorage.setItem('sendfile.dark', v ? '1' : '0');
+        }
+      },
+
+      mounted() {
+        document.documentElement.setAttribute('data-theme', this.darkMode ? 'dark' : 'light');
+        this.connectSocket();
+        // 监听系统主题变化（只在未手动设置时生效）
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+          if (localStorage.getItem('sendfile.dark') === null) {
+            this.darkMode = e.matches;
+          }
+        });
+        // 初始化通知权限状态（处理刷新后按鈕状态与实际权限不一致的问题）
+        this.syncNotifyState();
+      },
+
+      methods: {
+        /* ── WebSocket ─────────────────────────────────────────── */
+        connectSocket() {
+          clearTimeout(this.reconnectTimer); this.reconnectTimer = null;
+          const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+          if (this.ws && [WebSocket.OPEN, WebSocket.CONNECTING].includes(this.ws.readyState)) return;
+          this.ws = new WebSocket(`${proto}://${location.host}`);
+          const sock = this.ws;
+          this.ws.onopen = () => { this.wsReady = true; if (this.localOnline) this.sendOnline(false); };
+          this.ws.onclose = () => {
+            if (this.ws === sock) { this.wsReady = false; this.ws = null; }
+            // 断线时若在会话中，重置会话状态
+            if (this.isConnected) {
+              this.forceBackToList();
+              ElMessage.warning('连接已断开，请重新上线并进入会话');
+            }
+            if (!sock.manualClose) this.reconnectTimer = setTimeout(() => this.connectSocket(), 1200);
+          };
+          this.ws.onerror = () => { this.wsReady = false; };
+          this.ws.onmessage = e => this.handleMessage(JSON.parse(e.data));
+        },
+        refreshSocket() {
+          clearTimeout(this.reconnectTimer); this.reconnectTimer = null; this.wsReady = false;
+          if (this.ws && [WebSocket.OPEN, WebSocket.CONNECTING].includes(this.ws.readyState)) { this.ws.manualClose = true; this.ws.close(); }
+          this.ws = null; setTimeout(() => this.connectSocket(), 80);
+        },
+
+        handleMessage(msg) {
+          const h = {
+            MY_IP: () => { this.myRealIp = msg.ip; },
+            ONLINE_RESULT: () => { this.loading = false; this.deviceActionPending = false; clearTimeout(this.deviceActionTimer); this.deviceActionTimer = null; this.localOnline = true; this.deviceName = msg.assignedName || this.deviceName; localStorage.setItem('sendfile.deviceName', this.deviceName); if (msg.showToast !== false) ElMessage.success('设备已上线'); },
+            OFFLINE_RESULT: () => { this.loading = false; this.deviceActionPending = false; clearTimeout(this.deviceActionTimer); this.deviceActionTimer = null; this.localOnline = false; this.deviceList = []; this.groupList = []; this.radar = { onlineCount: 0, activeSessionCount: 0, activeTransferCount: 0, devices: [], sessions: [] }; this.forceBackToList(); ElMessage.success('设备已下线'); },
+            DEVICE_LIST: () => { this.deviceList = msg.list || []; },
+            GROUP_LIST: () => { this.groupList = msg.list || []; },
+            RADAR_STATE: () => { this.radar = { ...this.radar, ...msg }; },
+            CONNECT_NOTIFY: () => { this.incomingRequest = msg; this.showConnectDialog = true; },
+            CONNECT_CANCELED: () => { this.showConnectDialog = false; ElMessage.info(msg.message || '连接请求已取消'); },
+            CONNECT_RESULT: () => { this.clearWait(); if (!msg.allow) ElMessage.warning(msg.message || '连接失败'); },
+            PIN_ERROR: () => { this.clearWait(); ElMessage.error(msg.message || 'PIN 码错误'); },
+            SESSION_JOINED: () => { this.clearWait(); this.applySession(msg.session); ElMessage.success('已进入文件传输会话'); },
+            SESSION_UPDATE: () => this.applySession(msg.session),
+            SESSION_CLOSED: () => { this.forceBackToList(); ElMessage.warning(msg.message || '会话已结束'); },
+            MEMBER_LEFT: () => ElMessage.warning(msg.message || '有成员离开会话'),
+            MEMBER_JOINED: () => ElMessage.success(msg.message || '新成员已加入'),
+            GROUP_JOIN_NOTIFY: () => { this.incomingJoin = msg; this.showJoinDialog = true; },
+            GROUP_JOIN_RESULT: () => { if (msg.pending) ElMessage.info(msg.message); else if (msg.success) ElMessage.success(msg.message || '已加入会话'); else ElMessage.warning(msg.message || '加入失败'); },
+            FILE_LIST: () => {
+              const prev = this.fileList.length;
+              this.fileList = msg.list || [];
+              // 有新文件时发送桌面通知
+              const added = this.fileList.length - prev;
+              if (added > 0 && !document.hasFocus() && this.isConnected) {
+                this.showNativeNotif('📥 新文件', `收到 ${added} 个新文件`);
+              }
+            },
+            ERROR: () => ElMessage.error(msg.message || '服务端错误'),
+            // 新增消息类型
+            CHAT_MSG: () => {
+              this.chatMessages.push(msg);
+              if (!this.chatOpen) this.unreadCount++;
+              this.$nextTick(() => this.scrollChat());
+              if (!document.hasFocus()) this.showNativeNotif('💬 ' + msg.fromName, msg.content.slice(0, 80));
+            },
+            CLIP_SHARE: () => { this.receivedClip = msg; this.showClipReceive = true; },
+            UPLOAD_PROGRESS: () => {
+              if (msg.uploaderIp === this.myRealIp) return; // 自己的进度不显示
+              const idx = this.otherUploads.findIndex(u => u.uploadId === msg.uploadId);
+              if (msg.done || msg.progress >= 100) {
+                if (idx >= 0) this.otherUploads.splice(idx, 1);
+              } else {
+                if (idx >= 0) this.otherUploads[idx] = msg;
+                else this.otherUploads.push(msg);
+              }
+            }
+          };
+          h[msg.type]?.();
+        },
+
+        /* 安全 WebSocket 发送（统一封装，防止断线时报错） */
+        safeSend(payload) {
+          if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+            ElMessage.warning('服务未连接，请稍候再试'); return false;
+          }
+          try { this.ws.send(JSON.stringify(payload)); return true; }
+          catch (e) { ElMessage.warning('消息发送失败'); return false; }
+        },
+
+        /* ── 设备上下线 ────────────────────────────────────────── */
+        deviceOnline() {
+          if (!this.deviceName.trim()) { ElMessage.warning('请输入设备名称'); return; }
+          if (!this.canRunDeviceAction('上线')) return;
+          this.loading = true; this.lockDeviceAction(); this.sendOnline(true);
+        },
+        sendOnline(showToast) {
+          this.safeSend({ type: 'ONLINE', name: this.deviceName.trim(), status: this.deviceStatus, pin: this.pinCode.trim(), showToast });
+        },
+        deviceOffline() {
+          if (!this.canRunDeviceAction('下线')) return;
+          this.loading = true; this.lockDeviceAction();
+          this.safeSend({ type: 'OFFLINE' });
+        },
+        canRunDeviceAction(name) {
+          if (this.deviceActionPending) { ElMessage.warning(`正在处理${name}请求，请勿重复点击`); return false; }
+          if (Date.now() - this.lastDeviceActionAt < 1200) { ElMessage.warning('操作太频繁，请稍后再试'); return false; }
+          if (!this.wsReady) { ElMessage.warning('服务连接中，请稍后再试'); return false; }
+          this.lastDeviceActionAt = Date.now(); return true;
+        },
+        lockDeviceAction() {
+          this.deviceActionPending = true; clearTimeout(this.deviceActionTimer);
+          this.deviceActionTimer = setTimeout(() => { this.loading = false; this.deviceActionPending = false; ElMessage.warning('服务响应超时，请检查连接后重试'); }, 8000);
+        },
+        updateMyStatus() {
+          if (this.localOnline && this.wsReady) this.safeSend({ type: 'UPDATE_STATUS', status: this.deviceStatus });
+        },
+
+        /* ── 连接 / 配对 ───────────────────────────────────────── */
+        connectDevice(row) {
+          if (!this.localOnline) { ElMessage.warning('请先上线本机设备'); return; }
+          this.targetIpForPin = row.ip; this.targetDeviceName = row.name;
+          if (row.hasPin) { this.inputPin = ''; this.showPinDialog = true; }
+          else this.sendConnectRequest(row.ip, '');
+        },
+        submitPin() {
+          if (!this.inputPin.trim()) { ElMessage.warning('请输入 PIN 码'); return; }
+          this.showPinDialog = false; this.sendConnectRequest(this.targetIpForPin, this.inputPin.trim());
+        },
+        sendConnectRequest(targetIp, pin) {
+          this.showWaitDialog = true; clearTimeout(this.waitTimer);
+          this.waitTimer = setTimeout(() => { this.showWaitDialog = false; ElMessage.warning('连接超时，对方未响应'); }, 30000);
+          this.safeSend({ type: 'CONNECT_REQ', targetIp, pin, timestamp: Date.now() });
+        },
+        replyConnect(allow) {
+          this.safeSend({ type: 'CONNECT_RES', toIp: this.incomingRequest.fromIp, allow, message: allow ? '对方已同意连接' : '对方拒绝了连接' });
+          this.showConnectDialog = false;
+        },
+        requestJoinGroup(row) {
+          if (!this.localOnline) { ElMessage.warning('请先上线本机设备'); return; }
+          this.safeSend({ type: 'GROUP_JOIN_REQ', groupId: row.id });
+        },
+        replyJoin(allow) {
+          this.safeSend({ type: 'GROUP_JOIN_RES', requesterIp: this.incomingJoin.requesterIp, groupId: this.incomingJoin.groupId, allow });
+          this.showJoinDialog = false;
+        },
+        cancelWait() {
+          if (this.targetIpForPin) this.safeSend({ type: 'CONNECT_CANCEL', targetIp: this.targetIpForPin, message: '对方取消了连接请求' });
+          this.clearWait();
+        },
+        clearWait() { this.showWaitDialog = false; clearTimeout(this.waitTimer); this.waitTimer = null; },
+
+        /* ── 会话管理 ───────────────────────────────────────────── */
+        applySession(session) {
+          if (!session) return;
+          this.isConnected = true; this.currentSessionId = session.id;
+          this.currentSessionMembers = session.members || []; this.fileList = session.files || [];
+          this.folderBrowse = null;
+        },
+        backToList() {
+          this.safeSend({ type: 'DISCONNECT', message: `${this.deviceName} 已离开会话` });
           this.forceBackToList();
-          ElMessage.warning('连接已断开，请重新上线并进入会话');
-        }
-        if (!sock.manualClose) this.reconnectTimer = setTimeout(() => this.connectSocket(), 1200);
-      };
-      this.ws.onerror = () => { this.wsReady = false; };
-      this.ws.onmessage = e => this.handleMessage(JSON.parse(e.data));
-    },
-    refreshSocket() {
-      clearTimeout(this.reconnectTimer); this.reconnectTimer = null; this.wsReady = false;
-      if (this.ws && [WebSocket.OPEN, WebSocket.CONNECTING].includes(this.ws.readyState)) { this.ws.manualClose = true; this.ws.close(); }
-      this.ws = null; setTimeout(() => this.connectSocket(), 80);
-    },
+        },
+        forceBackToList() {
+          this.isConnected = false; this.currentSessionId = ''; this.currentSessionMembers = []; this.fileList = [];
+          this.folderBrowse = null; this.chatMessages = []; this.chatOpen = false; this.unreadCount = 0;
+          this.otherUploads = []; this.selectedKeys = [];
+          this.clearWait(); this.showPinDialog = false; this.showConnectDialog = false; this.showJoinDialog = false;
+        },
 
-    handleMessage(msg) {
-      const h = {
-        MY_IP:          () => { this.myRealIp = msg.ip; },
-        ONLINE_RESULT:  () => { this.loading = false; this.deviceActionPending = false; clearTimeout(this.deviceActionTimer); this.deviceActionTimer = null; this.localOnline = true; this.deviceName = msg.assignedName || this.deviceName; localStorage.setItem('sendfile.deviceName', this.deviceName); if (msg.showToast !== false) ElMessage.success('设备已上线'); },
-        OFFLINE_RESULT: () => { this.loading = false; this.deviceActionPending = false; clearTimeout(this.deviceActionTimer); this.deviceActionTimer = null; this.localOnline = false; this.deviceList = []; this.groupList = []; this.radar = { onlineCount:0, activeSessionCount:0, activeTransferCount:0, devices:[], sessions:[] }; this.forceBackToList(); ElMessage.success('设备已下线'); },
-        DEVICE_LIST:    () => { this.deviceList = msg.list || []; },
-        GROUP_LIST:     () => { this.groupList = msg.list || []; },
-        RADAR_STATE:    () => { this.radar = { ...this.radar, ...msg }; },
-        CONNECT_NOTIFY: () => { this.incomingRequest = msg; this.showConnectDialog = true; },
-        CONNECT_CANCELED:() => { this.showConnectDialog = false; ElMessage.info(msg.message || '连接请求已取消'); },
-        CONNECT_RESULT: () => { this.clearWait(); if (!msg.allow) ElMessage.warning(msg.message || '连接失败'); },
-        PIN_ERROR:      () => { this.clearWait(); ElMessage.error(msg.message || 'PIN 码错误'); },
-        SESSION_JOINED: () => { this.clearWait(); this.applySession(msg.session); ElMessage.success('已进入文件传输会话'); },
-        SESSION_UPDATE: () => this.applySession(msg.session),
-        SESSION_CLOSED: () => { this.forceBackToList(); ElMessage.warning(msg.message || '会话已结束'); },
-        MEMBER_LEFT:    () => ElMessage.warning(msg.message || '有成员离开会话'),
-        MEMBER_JOINED:  () => ElMessage.success(msg.message || '新成员已加入'),
-        GROUP_JOIN_NOTIFY: () => { this.incomingJoin = msg; this.showJoinDialog = true; },
-        GROUP_JOIN_RESULT: () => { if (msg.pending) ElMessage.info(msg.message); else if (msg.success) ElMessage.success(msg.message || '已加入会话'); else ElMessage.warning(msg.message || '加入失败'); },
-        FILE_LIST: () => {
-          const prev = this.fileList.length;
-          this.fileList = msg.list || [];
-          // 有新文件时发送桌面通知
-          const added = this.fileList.length - prev;
-          if (added > 0 && !document.hasFocus() && this.isConnected) {
-            this.showNativeNotif('📥 新文件', `收到 ${added} 个新文件`);
+        /* ── 文件选择 / 上传 ────────────────────────────────────── */
+        chooseFiles() { document.getElementById('fileInput').click(); },
+        chooseFolder() { document.getElementById('folderInput').click(); },
+        async handleFiles(e) {
+          const files = Array.from(e.target.files || []); e.target.value = '';
+          if (files.length) await this.uploadFiles(files);
+        },
+        onDragEnter() { this.dragDepth++; this.dragActive = true; },
+        onDragOver() { this.dragActive = true; },
+        onDragLeave() { this.dragDepth = Math.max(0, this.dragDepth - 1); this.dragActive = this.dragDepth > 0; },
+        onDropFiles(e) {
+          this.dragDepth = 0; this.dragActive = false;
+          const items = Array.from(e.dataTransfer?.items || []);
+          if (items.some(i => i.webkitGetAsEntry?.()?.isDirectory)) { ElMessage.warning('拖拽暂不支持文件夹，请点击"选择文件夹"'); return; }
+          const files = Array.from(e.dataTransfer?.files || []);
+          if (files.length) this.uploadFiles(files);
+        },
+        detectFolderUpload(files) {
+          const p = files[0]?.webkitRelativePath;
+          if (!p) return null;
+          return { batchId: createUuid(), rootName: p.replace(/\\/g, '/').split('/')[0], fileCount: files.length };
+        },
+
+        async uploadFiles(files) {
+          if (!this.isConnected) { ElMessage.warning('请先进入会话'); return; }
+          const over = files.find(f => f.size > this.MAX_FILE_SIZE);
+          if (over) { ElMessage.error(`文件超过限制：${over.name}`); return; }
+          if (files.reduce((s, f) => s + f.size, 0) > this.MAX_TOTAL_UPLOAD_SIZE) { ElMessage.error('单次上传总大小不能超过 2GB'); return; }
+          const folderMeta = this.detectFolderUpload(files);
+          this.uploading = true; this.uploadProgress = 0;
+          this._uploadStartTime = Date.now(); this._uploadedBytes = 0; this.uploadSpeedText = '';
+          try {
+            await this.uploadByChunks(files, folderMeta);
+            this.uploadProgress = 100;
+            ElMessage.success('上传完成');
+            this.addHistory(files, true);
+          } catch (err) {
+            ElMessage.error(err.message || '上传失败');
+            this.addHistory(files, false);
+          } finally {
+            setTimeout(() => { this.uploading = false; this.uploadProgress = 0; this.uploadSpeedText = ''; }, 800);
           }
         },
-        ERROR:          () => ElMessage.error(msg.message || '服务端错误'),
-        // 新增消息类型
-        CHAT_MSG:       () => {
-          this.chatMessages.push(msg);
-          if (!this.chatOpen) this.unreadCount++;
-          this.$nextTick(() => this.scrollChat());
-          if (!document.hasFocus()) this.showNativeNotif('💬 ' + msg.fromName, msg.content.slice(0, 80));
+
+        async uploadByChunks(files, folderMeta) {
+          if (folderMeta) {
+            const r = await fetch('/begin-folder-batch', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: this.currentSessionId, uploaderIp: this.myRealIp, batchId: folderMeta.batchId, rootName: folderMeta.rootName, fileCount: folderMeta.fileCount }) });
+            const j = await r.json().catch(() => ({}));
+            if (!r.ok || j.success === false) throw new Error(j.message || '无法开始文件夹上传');
+          }
+
+          const jobs = await Promise.all(files.map(async file => {
+            const uploadId = fileFingerprint(file);
+            const totalChunks = Math.max(1, Math.ceil(file.size / this.CHUNK_SIZE));
+            // 断点续传：查询已完成分片
+            let done = new Set();
+            try {
+              const sr = await fetch(`/upload-status?uploadId=${encodeURIComponent(uploadId)}`);
+              const sj = await sr.json();
+              done = new Set(sj.chunks || []);
+            } catch { }
+            return { file, uploadId, totalChunks, done };
+          }));
+
+          const tasks = jobs.flatMap(job =>
+            Array.from({ length: job.totalChunks }, (_, i) => ({ ...job, chunkIndex: i }))
+              .filter(t => !t.done.has(t.chunkIndex))
+          );
+
+          let finished = 0;
+          const totalTasks = tasks.length || 1;
+          let cursor = 0;
+          const worker = async () => {
+            while (cursor < tasks.length) {
+              const t = tasks[cursor++];
+              await this.uploadChunk(t);
+              this.uploadProgress = Math.min(97, Math.round(++finished / totalTasks * 100));
+            }
+          };
+          await Promise.all(Array.from({ length: Math.min(this.CHUNK_CONCURRENCY, Math.max(1, tasks.length)) }, worker));
+
+          for (const job of jobs) {
+            const r = await fetch('/upload-complete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(folderMeta ? { uploadId: job.uploadId, folderBatchId: folderMeta.batchId } : { uploadId: job.uploadId }) });
+            const j = await r.json().catch(() => ({}));
+            if (!r.ok || j.success === false) throw new Error(j.message || '文件合并失败');
+          }
         },
-        CLIP_SHARE:     () => { this.receivedClip = msg; this.showClipReceive = true; },
-        UPLOAD_PROGRESS:() => {
-          if (msg.uploaderIp === this.myRealIp) return; // 自己的进度不显示
-          const idx = this.otherUploads.findIndex(u => u.uploadId === msg.uploadId);
-          if (msg.done || msg.progress >= 100) {
-            if (idx >= 0) this.otherUploads.splice(idx, 1);
+
+        async uploadChunk(task) {
+          const start = task.chunkIndex * this.CHUNK_SIZE;
+          const chunkBlob = task.file.slice(start, Math.min(start + this.CHUNK_SIZE, task.file.size));
+          const form = new FormData();
+          form.append('chunk', chunkBlob);
+          form.append('uploadId', task.uploadId);
+          form.append('chunkIndex', String(task.chunkIndex));
+          form.append('totalChunks', String(task.totalChunks));
+          form.append('fileName', task.file.name);
+          form.append('relativePath', task.file.webkitRelativePath || task.file.name);
+          form.append('fileSize', String(task.file.size));
+          form.append('fileType', task.file.type || '');
+          form.append('sessionId', this.currentSessionId);
+          form.append('uploaderIp', this.myRealIp);
+          const r = await fetch('/upload-chunk', { method: 'POST', body: form });
+          const j = await r.json().catch(() => ({}));
+          if (!r.ok || j.success === false) throw new Error(j.message || '分片上传失败');
+          // 计算上传速度
+          this._uploadedBytes += chunkBlob.size;
+          const elapsed = (Date.now() - this._uploadStartTime) / 1000;
+          if (elapsed > 0) this.uploadSpeedText = this.formatSize(this._uploadedBytes / elapsed) + '/s';
+        },
+
+        /* ── 文件操作 ───────────────────────────────────────────── */
+        onSelectionChange(rows) {
+          this.selectedKeys = rows.map(r => r.path || r.id);
+        },
+        toggleSelectAll() {
+          if (this.selectedKeys.length === this.filteredFileList.length && this.filteredFileList.length > 0) this.selectedKeys = [];
+          else this.selectedKeys = this.filteredFileList.map(f => f.path || f.id);
+        },
+        async batchDownload() {
+          if (!this.selectedKeys.length) return;
+          const r = await fetch('/batch-download-zip', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: this.currentSessionId, requesterIp: this.myRealIp, fileKeys: this.selectedKeys }) });
+          if (!r.ok) { ElMessage.error('批量下载失败'); return; }
+          const blob = await r.blob();
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `sendfile_batch_${Date.now()}.zip`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          // 延迟释放，确保下载已启动
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+        },
+        async deleteFile(row) {
+          try { await ElMessageBox.confirm(`确定要删除「${row.name}」吗？此操作不可恢复`, '删除确认', { type: 'warning' }); }
+          catch { return; }
+          const r = await fetch('/delete-file', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: this.currentSessionId, uploaderIp: this.myRealIp, filePath: row.path || '', fileId: row.id || '' }) });
+          const j = await r.json().catch(() => ({}));
+          if (j.success) ElMessage.success('已删除');
+          else ElMessage.error(j.message || '删除失败');
+        },
+        openRenameDialog(row) { this.renameTarget = row; this.renameValue = row.name; this.showRenameDialog = true; },
+        async submitRename() {
+          if (!this.renameValue.trim()) { ElMessage.warning('文件名不能为空'); return; }
+          const row = this.renameTarget;
+          const r = await fetch('/rename-file', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: this.currentSessionId, uploaderIp: this.myRealIp, filePath: row.path || '', fileId: row.id || '', newName: this.renameValue.trim() }) });
+          const j = await r.json().catch(() => ({}));
+          if (j.success) { ElMessage.success('已重命名'); this.showRenameDialog = false; }
+          else ElMessage.error(j.message || '重命名失败');
+        },
+
+        /* ── 文件夹浏览 ────────────────────────────────────────── */
+        openFolder(row) { this.folderBrowse = { folderId: row.id, subPath: '' }; },
+        folderBrowseUp() {
+          if (!this.folderBrowse?.subPath) { this.folderBrowse = null; return; }
+          const parts = this.folderBrowse.subPath.split('/').filter(Boolean); parts.pop();
+          this.folderBrowse.subPath = parts.join('/');
+        },
+        enterSubFolder(name) { this.folderBrowse.subPath = this.folderBrowse.subPath ? `${this.folderBrowse.subPath}/${name}` : name; },
+        buildFolderBrowseRows(items, subPath) {
+          const prefix = String(subPath || '').replace(/\\/g, '/').replace(/\/+$/, '');
+          const dirs = new Set(); const files = [];
+          for (const item of items) {
+            const rel = String(item.relPath || '').replace(/\\/g, '/');
+            const rest = prefix ? rel.replace(`${prefix}/`, '') : rel;
+            if (prefix && !rel.startsWith(`${prefix}/`)) continue;
+            if (rest.includes('/')) dirs.add(rest.split('/')[0]);
+            else files.push({ type: 'file', name: rest, path: item.path, size: item.size || 0, fileType: item.fileType || '' });
+          }
+          return [...Array.from(dirs).sort().map(n => ({ type: 'folder', name: n })), ...files.sort((a, b) => a.name.localeCompare(b.name))];
+        },
+
+        /* ── 下载 / 预览 ────────────────────────────────────────── */
+        downloadFile(row) {
+          // 必须挂载到 DOM，否则 Safari 和部分移动端不触发下载
+          const a = document.createElement('a');
+          a.href = row.path;
+          a.download = String(row.name || 'file').split('/').pop();
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        },
+        downloadFolderZip(row) {
+          if (!row?.id) return;
+          location.href = `/download-folder-zip?sessionId=${encodeURIComponent(this.currentSessionId)}&folderId=${encodeURIComponent(row.id)}&requesterIp=${encodeURIComponent(this.myRealIp)}`;
+        },
+        previewMode(row) {
+          const t = String(row.fileType || '').toLowerCase();
+          const ext = this.fileExtension(row);
+          if (t.startsWith('image/') || ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'].includes(ext)) return 'image';
+          if (t.startsWith('video/') || ['mp4', 'webm', 'ogg', 'mov'].includes(ext)) return 'video';
+          if (t.startsWith('audio/') || ['mp3', 'wav', 'ogg', 'm4a', 'flac'].includes(ext)) return 'audio';
+          if (t === 'application/pdf' || ext === 'pdf') return 'pdf';
+          if (ext === 'docx') return 'docx';
+          if (t.startsWith('text/') || ['txt', 'md', 'json', 'js', 'ts', 'css', 'html', 'xml', 'csv', 'log', 'yaml', 'yml', 'sh', 'py', 'java', 'go', 'rs'].includes(ext)) return 'text';
+          return 'unsupported';
+        },
+        async previewFile(row) {
+          const mode = this.previewMode(row);
+          this.preview = { visible: true, mode, name: row.name || '文件预览', url: mode === 'docx' ? `/preview/docx?path=${encodeURIComponent(row.path)}` : row.path, text: '', row };
+          if (mode === 'unsupported') { ElMessage.info('该文件类型暂不支持在线预览'); return; }
+          if (mode === 'text') {
+            // 超过 5MB 的文本文件不加载，防止卡死浏览器
+            if (row.size > 5 * 1024 * 1024) {
+              this.preview.mode = 'unsupported';
+              ElMessage.warning('文本文件过大（' + this.formatSize(row.size) + '），请下载后查看'); return;
+            }
+            try { const r = await fetch(row.path); const txt = await r.text(); this.preview.text = txt.length > 200000 ? txt.slice(0, 200000) + '\n\n\u2026\u5185\u5bb9\u8fc7\u957f\uff0c\u4ec5\u9884\u89c8\u524d 200KB' : txt; }
+            catch { this.preview.text = '\u6587\u672c\u8bfb\u53d6\u5931\u8d25'; }
+          }
+        },
+
+        /* ── 聊天 ───────────────────────────────────────────────── */
+        toggleChat() { this.chatOpen = !this.chatOpen; if (this.chatOpen) { this.unreadCount = 0; this.$nextTick(() => this.scrollChat()); } },
+        sendChat() {
+          if (!this.isConnected || !this.wsReady) { ElMessage.warning('请先进入会话'); return; }
+          const c = this.chatInput.trim(); if (!c) return;
+          this.safeSend({ type: 'CHAT_MSG', content: c });
+          this.chatInput = '';
+        },
+        scrollChat() { const el = this.$refs.chatMsgs; if (el) el.scrollTop = el.scrollHeight; },
+        formatTime(ts) { return new Date(ts).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }); },
+
+        /* ── 剪贴板共享 ─────────────────────────────────────────── */
+        openClipDialog() { this.clipContent = ''; this.showClipDialog = true; },
+        sendClip() {
+          if (!this.isConnected || !this.wsReady) { ElMessage.warning('请先进入会话'); return; }
+          if (!this.clipContent.trim()) { ElMessage.warning('内容不能为空'); return; }
+          this.safeSend({ type: 'CLIP_SHARE', content: this.clipContent.trim() });
+          this.showClipDialog = false; ElMessage.success('已发送给所有成员');
+        },
+        async copyClip(text) {
+          try { await navigator.clipboard.writeText(text); ElMessage.success('已复制到剪贴板'); }
+          catch { ElMessage.warning('请手动选中复制'); }
+          this.showClipReceive = false;
+        },
+
+        /* ── 二维码 ─────────────────────────────────────────────── */
+        async loadQrCode() {
+          this.qrLoading = true;
+          try { const r = await fetch('/qrcode'); this.qrData = await r.json(); }
+          catch { ElMessage.error('二维码生成失败'); }
+          finally { this.qrLoading = false; }
+        },
+
+        /* ── 深色模式 ────────────────────────────────────────────── */
+        toggleDark() {
+          this.darkMode = !this.darkMode;
+          localStorage.setItem('sendfile.dark', this.darkMode ? '1' : '0');
+        },
+
+        /* ── 桌面通知 ──────────────────────────────────────── */
+        // 检测是否在 Electron 环境中运行
+        isElectron() {
+          return typeof process !== 'undefined' &&
+            typeof process.versions !== 'undefined' &&
+            process.versions.electron != null;
+        },
+
+        // 同步通知权限状态（页面加载、刷新后自动调用）
+        syncNotifyState() {
+          if (typeof Notification === 'undefined') return;
+          const perm = Notification.permission;
+          this.notifyPermission = perm;
+          if (perm === 'granted') {
+            // 权限已授权，以 localStorage 开关为准
+            this.notifyEnabled = localStorage.getItem('sendfile.notify') !== '0';
           } else {
-            if (idx >= 0) this.otherUploads[idx] = msg;
-            else this.otherUploads.push(msg);
+            // 权限未授权（denied / default），强制关闭本地开关
+            this.notifyEnabled = false;
+            if (perm !== 'denied') {
+              // default 状态清除已存的 localStorage，避免釘不准
+              localStorage.removeItem('sendfile.notify');
+            }
           }
-        }
-      };
-      h[msg.type]?.();
-    },
+        },
 
-    /* 安全 WebSocket 发送（统一封装，防止断线时报错） */
-    safeSend(payload) {
-      if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-        ElMessage.warning('服务未连接，请稍候再试'); return false;
+        // 开启通知：请求系统权限（首次）+ 打开本地开关
+        async requestNotifyPermission() {
+          if (typeof Notification === 'undefined') {
+            ElMessage.warning('当前环境不支持桌面通知'); return;
+          }
+          // 权限已被永久拒绝，引导用户手动开启
+          if (Notification.permission === 'denied') {
+            const guide = this.isElectron()
+              ? '权限已被系统阻止，请到 系统设置 → 通知 中手动开启本应用的通知权限'
+              : '权限已被浏览器阻止，请到 浏览器设置 → 隐私和安全 → 通知 中手动开启';
+            ElMessage({ message: guide, type: 'warning', duration: 6000, showClose: true }); return;
+          }
+          // 权限已授权：只需打开本地开关即可
+          if (Notification.permission === 'granted') {
+            this.notifyEnabled = true;
+            localStorage.setItem('sendfile.notify', '1');
+            ElMessage.success('桌面通知已开启！'); return;
+          }
+          // 权限是 default：弹出系统/浏览器授权弹窗
+          try {
+            const perm = await Notification.requestPermission();
+            this.notifyPermission = perm;
+            if (perm === 'granted') {
+              this.notifyEnabled = true;
+              localStorage.setItem('sendfile.notify', '1');
+              ElMessage.success('桌面通知已开启！');
+            } else if (perm === 'denied') {
+              this.notifyEnabled = false;
+              ElMessage({ message: '已拒绝授权，通知无法开启', type: 'warning', duration: 4000, showClose: true });
+            } else {
+              ElMessage({ message: '未选择权限，可稍后再试', type: 'info', duration: 3000 });
+            }
+          } catch (err) {
+            ElMessage.error('请求通知权限失败：' + err.message);
+          }
+        },
+
+        // 关闭通知：仅关闭本地开关，无需操作系统权限（浏览器和 Electron 通用）
+        disableNotify() {
+          this.notifyEnabled = false;
+          localStorage.setItem('sendfile.notify', '0');
+          ElMessage.success('桌面通知已关闭');
+        },
+
+        // 发送通知：同时检查系统权限 + 本地开关
+        showNativeNotif(title, body) {
+          if (typeof Notification === 'undefined') return;
+          if (Notification.permission !== 'granted') return;
+          if (!this.notifyEnabled) return;  // 本地开关已关闭，静默不发送
+          try {
+            const n = new Notification(title, { body });
+            // 3秒后自动关闭（参考实现）
+            setTimeout(() => n.close(), 3000);
+            n.onclick = () => { window.focus(); n.close(); };
+          } catch (e) {
+            if (this.isElectron()) console.warn('[Electron] 通知发送失败:', e.message);
+          }
+        },
+
+        /* ── 文件排序 ──────────────────────────────────────── */
+        toggleSort(field) {
+          if (this.sortField === field) this.sortDir = this.sortDir === 'asc' ? 'desc' : 'asc';
+          else { this.sortField = field; this.sortDir = field === 'name' ? 'asc' : 'desc'; }
+        },
+
+        /* ── 图片判断 + 文件图标 ───────────────────────────────── */
+        isImageFile(row) {
+          const t = String(row.fileType || '').toLowerCase();
+          const ext = this.fileExtension(row);
+          return row.kind === 'file' && (t.startsWith('image/') || ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'].includes(ext));
+        },
+        fileIcon(row) {
+          const ext = this.fileExtension(row);
+          if (['mp4', 'webm', 'mov', 'avi'].includes(ext)) return '🎬';
+          if (['mp3', 'wav', 'flac', 'm4a', 'ogg'].includes(ext)) return '🎵';
+          if (ext === 'pdf') return '📄';
+          if (['docx', 'doc'].includes(ext)) return '📝';
+          if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) return '🗂️';
+          if (['js', 'ts', 'py', 'go', 'java', 'sh', 'css', 'html', 'json', 'yml', 'yaml'].includes(ext)) return '💻';
+          return '📄';
+        },
+
+        /* ── 复制下载链接 ─────────────────────────────────── */
+        async copyFileLink(row) {
+          if (!row || !row.path) { ElMessage.warning('文件链接不可用'); return; }
+          const url = location.origin + row.path;
+          try {
+            await navigator.clipboard.writeText(url);
+            ElMessage.success('下载链接已复制 ✓');
+          } catch (e) {
+            const input = document.createElement('input'); input.value = url;
+            document.body.appendChild(input); input.select();
+            try { document.execCommand('copy'); ElMessage.success('下载链接已复制 ✓'); } catch (e2) { ElMessage.info('链接：' + url); }
+            document.body.removeChild(input);
+          }
+        },
+
+        /* ── 传输历史 ────────────────────────────────────────────── */
+        addHistory(files, ok) {
+          const now = new Date().toLocaleString('zh-CN');
+          for (const f of files) {
+            this.transferHistory.unshift({ name: f.name, size: f.size, time: now, ok });
+          }
+          if (this.transferHistory.length > 200) this.transferHistory = this.transferHistory.slice(0, 200);
+          localStorage.setItem('sendfile.history', JSON.stringify(this.transferHistory));
+        },
+        clearHistory() { this.transferHistory = []; localStorage.removeItem('sendfile.history'); },
+
+        /* ── 工具函数 ────────────────────────────────────────────── */
+        formatSize(size) {
+          const v = Number(size || 0);
+          if (v >= 1073741824) return `${(v / 1073741824).toFixed(2)} GB`;
+          if (v >= 1048576) return `${(v / 1048576).toFixed(2)} MB`;
+          if (v >= 1024) return `${(v / 1024).toFixed(2)} KB`;
+          return `${v} B`;
+        },
+        fileSizeText(row) { const s = Number(row.size || 0); return s > 0 ? this.formatSize(s) : '—'; },
+        fileExtension(row) {
+          const name = String(row.name || row.relPath || '').split('?')[0];
+          const base = name.split('/').pop() || ''; const idx = base.lastIndexOf('.');
+          return idx >= 0 ? base.slice(idx + 1).toLowerCase() : '';
+        },
+        fileKindText(row) {
+          const t = String(row.fileType || '').toLowerCase(); const ext = this.fileExtension(row);
+          if (t.startsWith('image/') || ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'].includes(ext)) return '🖼 图片';
+          if (t.startsWith('video/') || ['mp4', 'webm', 'ogg', 'mov'].includes(ext)) return '🎬 视频';
+          if (t.startsWith('audio/') || ['mp3', 'wav', 'ogg', 'm4a', 'flac'].includes(ext)) return '🎵 音频';
+          if (t === 'application/pdf' || ext === 'pdf') return '📄 PDF';
+          if (ext === 'docx' || ext === 'doc') return '📝 Word';
+          if (t.startsWith('text/') || ['txt', 'md', 'json', 'js', 'ts', 'css', 'html', 'xml', 'csv'].includes(ext)) return '📃 文本';
+          return ext ? ext.toUpperCase() : '文件';
+        },
+        statusText(s) { return ({ online: '在线', busy: '忙碌', away: '离开' })[s] || '在线'; },
+        statusType(s) { return ({ online: 'success', busy: 'warning', away: 'info' })[s] || 'success'; }
+      },
+
+      beforeUnmount() {
+        if (this.isConnected) this.ws?.send(JSON.stringify({ type: 'DISCONNECT', message: `${this.deviceName} 已离开页面` }));
+        clearTimeout(this.deviceActionTimer); clearTimeout(this.reconnectTimer);
+        this.ws?.close();
       }
-      try { this.ws.send(JSON.stringify(payload)); return true; }
-      catch(e) { ElMessage.warning('消息发送失败'); return false; }
-    },
-
-    /* ── 设备上下线 ────────────────────────────────────────── */
-    deviceOnline() {
-      if (!this.deviceName.trim()) { ElMessage.warning('请输入设备名称'); return; }
-      if (!this.canRunDeviceAction('上线')) return;
-      this.loading = true; this.lockDeviceAction(); this.sendOnline(true);
-    },
-    sendOnline(showToast) {
-      this.safeSend({ type: 'ONLINE', name: this.deviceName.trim(), status: this.deviceStatus, pin: this.pinCode.trim(), showToast });
-    },
-    deviceOffline() {
-      if (!this.canRunDeviceAction('下线')) return;
-      this.loading = true; this.lockDeviceAction();
-      this.safeSend({ type: 'OFFLINE' });
-    },
-    canRunDeviceAction(name) {
-      if (this.deviceActionPending) { ElMessage.warning(`正在处理${name}请求，请勿重复点击`); return false; }
-      if (Date.now() - this.lastDeviceActionAt < 1200) { ElMessage.warning('操作太频繁，请稍后再试'); return false; }
-      if (!this.wsReady) { ElMessage.warning('服务连接中，请稍后再试'); return false; }
-      this.lastDeviceActionAt = Date.now(); return true;
-    },
-    lockDeviceAction() {
-      this.deviceActionPending = true; clearTimeout(this.deviceActionTimer);
-      this.deviceActionTimer = setTimeout(() => { this.loading = false; this.deviceActionPending = false; ElMessage.warning('服务响应超时，请检查连接后重试'); }, 8000);
-    },
-    updateMyStatus() {
-      if (this.localOnline && this.wsReady) this.safeSend({ type: 'UPDATE_STATUS', status: this.deviceStatus });
-    },
-
-    /* ── 连接 / 配对 ───────────────────────────────────────── */
-    connectDevice(row) {
-      if (!this.localOnline) { ElMessage.warning('请先上线本机设备'); return; }
-      this.targetIpForPin = row.ip; this.targetDeviceName = row.name;
-      if (row.hasPin) { this.inputPin = ''; this.showPinDialog = true; }
-      else this.sendConnectRequest(row.ip, '');
-    },
-    submitPin() {
-      if (!this.inputPin.trim()) { ElMessage.warning('请输入 PIN 码'); return; }
-      this.showPinDialog = false; this.sendConnectRequest(this.targetIpForPin, this.inputPin.trim());
-    },
-    sendConnectRequest(targetIp, pin) {
-      this.showWaitDialog = true; clearTimeout(this.waitTimer);
-      this.waitTimer = setTimeout(() => { this.showWaitDialog = false; ElMessage.warning('连接超时，对方未响应'); }, 30000);
-      this.safeSend({ type: 'CONNECT_REQ', targetIp, pin, timestamp: Date.now() });
-    },
-    replyConnect(allow) {
-      this.safeSend({ type: 'CONNECT_RES', toIp: this.incomingRequest.fromIp, allow, message: allow ? '对方已同意连接' : '对方拒绝了连接' });
-      this.showConnectDialog = false;
-    },
-    requestJoinGroup(row) {
-      if (!this.localOnline) { ElMessage.warning('请先上线本机设备'); return; }
-      this.safeSend({ type: 'GROUP_JOIN_REQ', groupId: row.id });
-    },
-    replyJoin(allow) {
-      this.safeSend({ type: 'GROUP_JOIN_RES', requesterIp: this.incomingJoin.requesterIp, groupId: this.incomingJoin.groupId, allow });
-      this.showJoinDialog = false;
-    },
-    cancelWait() {
-      if (this.targetIpForPin) this.safeSend({ type: 'CONNECT_CANCEL', targetIp: this.targetIpForPin, message: '对方取消了连接请求' });
-      this.clearWait();
-    },
-    clearWait() { this.showWaitDialog = false; clearTimeout(this.waitTimer); this.waitTimer = null; },
-
-    /* ── 会话管理 ───────────────────────────────────────────── */
-    applySession(session) {
-      if (!session) return;
-      this.isConnected = true; this.currentSessionId = session.id;
-      this.currentSessionMembers = session.members || []; this.fileList = session.files || [];
-      this.folderBrowse = null;
-    },
-    backToList() {
-      this.safeSend({ type: 'DISCONNECT', message: `${this.deviceName} 已离开会话` });
-      this.forceBackToList();
-    },
-    forceBackToList() {
-      this.isConnected = false; this.currentSessionId = ''; this.currentSessionMembers = []; this.fileList = [];
-      this.folderBrowse = null; this.chatMessages = []; this.chatOpen = false; this.unreadCount = 0;
-      this.otherUploads = []; this.selectedKeys = [];
-      this.clearWait(); this.showPinDialog = false; this.showConnectDialog = false; this.showJoinDialog = false;
-    },
-
-    /* ── 文件选择 / 上传 ────────────────────────────────────── */
-    chooseFiles()  { document.getElementById('fileInput').click(); },
-    chooseFolder() { document.getElementById('folderInput').click(); },
-    async handleFiles(e) {
-      const files = Array.from(e.target.files || []); e.target.value = '';
-      if (files.length) await this.uploadFiles(files);
-    },
-    onDragEnter() { this.dragDepth++; this.dragActive = true; },
-    onDragOver()  { this.dragActive = true; },
-    onDragLeave() { this.dragDepth = Math.max(0, this.dragDepth - 1); this.dragActive = this.dragDepth > 0; },
-    onDropFiles(e) {
-      this.dragDepth = 0; this.dragActive = false;
-      const items = Array.from(e.dataTransfer?.items || []);
-      if (items.some(i => i.webkitGetAsEntry?.()?.isDirectory)) { ElMessage.warning('拖拽暂不支持文件夹，请点击"选择文件夹"'); return; }
-      const files = Array.from(e.dataTransfer?.files || []);
-      if (files.length) this.uploadFiles(files);
-    },
-    detectFolderUpload(files) {
-      const p = files[0]?.webkitRelativePath;
-      if (!p) return null;
-      return { batchId: createUuid(), rootName: p.replace(/\\/g, '/').split('/')[0], fileCount: files.length };
-    },
-
-    async uploadFiles(files) {
-      if (!this.isConnected) { ElMessage.warning('请先进入会话'); return; }
-      const over = files.find(f => f.size > this.MAX_FILE_SIZE);
-      if (over) { ElMessage.error(`文件超过限制：${over.name}`); return; }
-      if (files.reduce((s, f) => s + f.size, 0) > this.MAX_TOTAL_UPLOAD_SIZE) { ElMessage.error('单次上传总大小不能超过 2GB'); return; }
-      const folderMeta = this.detectFolderUpload(files);
-      this.uploading = true; this.uploadProgress = 0;
-      this._uploadStartTime = Date.now(); this._uploadedBytes = 0; this.uploadSpeedText = '';
-      try {
-        await this.uploadByChunks(files, folderMeta);
-        this.uploadProgress = 100;
-        ElMessage.success('上传完成');
-        this.addHistory(files, true);
-      } catch (err) {
-        ElMessage.error(err.message || '上传失败');
-        this.addHistory(files, false);
-      } finally {
-        setTimeout(() => { this.uploading = false; this.uploadProgress = 0; this.uploadSpeedText = ''; }, 800);
-      }
-    },
-
-    async uploadByChunks(files, folderMeta) {
-      if (folderMeta) {
-        const r = await fetch('/begin-folder-batch', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ sessionId:this.currentSessionId, uploaderIp:this.myRealIp, batchId:folderMeta.batchId, rootName:folderMeta.rootName, fileCount:folderMeta.fileCount }) });
-        const j = await r.json().catch(() => ({}));
-        if (!r.ok || j.success === false) throw new Error(j.message || '无法开始文件夹上传');
-      }
-
-      const jobs = await Promise.all(files.map(async file => {
-        const uploadId = fileFingerprint(file);
-        const totalChunks = Math.max(1, Math.ceil(file.size / this.CHUNK_SIZE));
-        // 断点续传：查询已完成分片
-        let done = new Set();
-        try {
-          const sr = await fetch(`/upload-status?uploadId=${encodeURIComponent(uploadId)}`);
-          const sj = await sr.json();
-          done = new Set(sj.chunks || []);
-        } catch {}
-        return { file, uploadId, totalChunks, done };
-      }));
-
-      const tasks = jobs.flatMap(job =>
-        Array.from({ length: job.totalChunks }, (_, i) => ({ ...job, chunkIndex: i }))
-            .filter(t => !t.done.has(t.chunkIndex))
-      );
-
-      let finished = 0;
-      const totalTasks = tasks.length || 1;
-      let cursor = 0;
-      const worker = async () => {
-        while (cursor < tasks.length) {
-          const t = tasks[cursor++];
-          await this.uploadChunk(t);
-          this.uploadProgress = Math.min(97, Math.round(++finished / totalTasks * 100));
-        }
-      };
-      await Promise.all(Array.from({ length: Math.min(this.CHUNK_CONCURRENCY, Math.max(1, tasks.length)) }, worker));
-
-      for (const job of jobs) {
-        const r = await fetch('/upload-complete', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(folderMeta ? { uploadId:job.uploadId, folderBatchId:folderMeta.batchId } : { uploadId:job.uploadId }) });
-        const j = await r.json().catch(() => ({}));
-        if (!r.ok || j.success === false) throw new Error(j.message || '文件合并失败');
-      }
-    },
-
-    async uploadChunk(task) {
-      const start = task.chunkIndex * this.CHUNK_SIZE;
-      const chunkBlob = task.file.slice(start, Math.min(start + this.CHUNK_SIZE, task.file.size));
-      const form = new FormData();
-      form.append('chunk', chunkBlob);
-      form.append('uploadId', task.uploadId);
-      form.append('chunkIndex', String(task.chunkIndex));
-      form.append('totalChunks', String(task.totalChunks));
-      form.append('fileName', task.file.name);
-      form.append('relativePath', task.file.webkitRelativePath || task.file.name);
-      form.append('fileSize', String(task.file.size));
-      form.append('fileType', task.file.type || '');
-      form.append('sessionId', this.currentSessionId);
-      form.append('uploaderIp', this.myRealIp);
-      const r = await fetch('/upload-chunk', { method:'POST', body:form });
-      const j = await r.json().catch(() => ({}));
-      if (!r.ok || j.success === false) throw new Error(j.message || '分片上传失败');
-      // 计算上传速度
-      this._uploadedBytes += chunkBlob.size;
-      const elapsed = (Date.now() - this._uploadStartTime) / 1000;
-      if (elapsed > 0) this.uploadSpeedText = this.formatSize(this._uploadedBytes / elapsed) + '/s';
-    },
-
-    /* ── 文件操作 ───────────────────────────────────────────── */
-    onSelectionChange(rows) {
-      this.selectedKeys = rows.map(r => r.path || r.id);
-    },
-    toggleSelectAll() {
-      if (this.selectedKeys.length === this.filteredFileList.length && this.filteredFileList.length > 0) this.selectedKeys = [];
-      else this.selectedKeys = this.filteredFileList.map(f => f.path || f.id);
-    },
-    async batchDownload() {
-      if (!this.selectedKeys.length) return;
-      const r = await fetch('/batch-download-zip', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ sessionId:this.currentSessionId, requesterIp:this.myRealIp, fileKeys:this.selectedKeys }) });
-      if (!r.ok) { ElMessage.error('批量下载失败'); return; }
-      const blob = await r.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url; a.download = `sendfile_batch_${Date.now()}.zip`; a.click();
-      URL.revokeObjectURL(url);
-    },
-    async deleteFile(row) {
-      try { await ElMessageBox.confirm(`确定要删除「${row.name}」吗？此操作不可恢复`, '删除确认', { type: 'warning' }); }
-      catch { return; }
-      const r = await fetch('/delete-file', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ sessionId:this.currentSessionId, uploaderIp:this.myRealIp, filePath:row.path||'', fileId:row.id||'' }) });
-      const j = await r.json().catch(() => ({}));
-      if (j.success) ElMessage.success('已删除');
-      else ElMessage.error(j.message || '删除失败');
-    },
-    openRenameDialog(row) { this.renameTarget = row; this.renameValue = row.name; this.showRenameDialog = true; },
-    async submitRename() {
-      if (!this.renameValue.trim()) { ElMessage.warning('文件名不能为空'); return; }
-      const row = this.renameTarget;
-      const r = await fetch('/rename-file', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ sessionId:this.currentSessionId, uploaderIp:this.myRealIp, filePath:row.path||'', fileId:row.id||'', newName:this.renameValue.trim() }) });
-      const j = await r.json().catch(() => ({}));
-      if (j.success) { ElMessage.success('已重命名'); this.showRenameDialog = false; }
-      else ElMessage.error(j.message || '重命名失败');
-    },
-
-    /* ── 文件夹浏览 ────────────────────────────────────────── */
-    openFolder(row) { this.folderBrowse = { folderId: row.id, subPath: '' }; },
-    folderBrowseUp() {
-      if (!this.folderBrowse?.subPath) { this.folderBrowse = null; return; }
-      const parts = this.folderBrowse.subPath.split('/').filter(Boolean); parts.pop();
-      this.folderBrowse.subPath = parts.join('/');
-    },
-    enterSubFolder(name) { this.folderBrowse.subPath = this.folderBrowse.subPath ? `${this.folderBrowse.subPath}/${name}` : name; },
-    buildFolderBrowseRows(items, subPath) {
-      const prefix = String(subPath || '').replace(/\\/g, '/').replace(/\/+$/, '');
-      const dirs = new Set(); const files = [];
-      for (const item of items) {
-        const rel = String(item.relPath || '').replace(/\\/g, '/');
-        const rest = prefix ? rel.replace(`${prefix}/`, '') : rel;
-        if (prefix && !rel.startsWith(`${prefix}/`)) continue;
-        if (rest.includes('/')) dirs.add(rest.split('/')[0]);
-        else files.push({ type:'file', name:rest, path:item.path, size:item.size||0, fileType:item.fileType||'' });
-      }
-      return [...Array.from(dirs).sort().map(n => ({ type:'folder', name:n })), ...files.sort((a,b) => a.name.localeCompare(b.name))];
-    },
-
-    /* ── 下载 / 预览 ────────────────────────────────────────── */
-    downloadFile(row) {
-      const a = document.createElement('a'); a.href = row.path; a.download = String(row.name||'file').split('/').pop(); a.click();
-    },
-    downloadFolderZip(row) {
-      if (!row?.id) return;
-      location.href = `/download-folder-zip?sessionId=${encodeURIComponent(this.currentSessionId)}&folderId=${encodeURIComponent(row.id)}&requesterIp=${encodeURIComponent(this.myRealIp)}`;
-    },
-    previewMode(row) {
-      const t = String(row.fileType||'').toLowerCase();
-      const ext = this.fileExtension(row);
-      if (t.startsWith('image/') || ['png','jpg','jpeg','gif','webp','bmp','svg'].includes(ext)) return 'image';
-      if (t.startsWith('video/') || ['mp4','webm','ogg','mov'].includes(ext)) return 'video';
-      if (t.startsWith('audio/') || ['mp3','wav','ogg','m4a','flac'].includes(ext)) return 'audio';
-      if (t === 'application/pdf' || ext === 'pdf') return 'pdf';
-      if (ext === 'docx') return 'docx';
-      if (t.startsWith('text/') || ['txt','md','json','js','ts','css','html','xml','csv','log','yaml','yml','sh','py','java','go','rs'].includes(ext)) return 'text';
-      return 'unsupported';
-    },
-    async previewFile(row) {
-      const mode = this.previewMode(row);
-      this.preview = { visible:true, mode, name:row.name||'文件预览', url: mode==='docx' ? `/preview/docx?path=${encodeURIComponent(row.path)}` : row.path, text:'', row };
-      if (mode === 'unsupported') { ElMessage.info('该文件类型暂不支持在线预览'); return; }
-      if (mode === 'text') {
-        // 超过 5MB 的文本文件不加载，防止卡死浏览器
-        if (row.size > 5 * 1024 * 1024) {
-          this.preview.mode = 'unsupported';
-          ElMessage.warning('文本文件过大（' + this.formatSize(row.size) + '），请下载后查看'); return;
-        }
-        try { const r = await fetch(row.path); const txt = await r.text(); this.preview.text = txt.length > 200000 ? txt.slice(0,200000) + '\n\n\u2026\u5185\u5bb9\u8fc7\u957f\uff0c\u4ec5\u9884\u89c8\u524d 200KB' : txt; }
-        catch { this.preview.text = '\u6587\u672c\u8bfb\u53d6\u5931\u8d25'; }
-      }
-    },
-
-    /* ── 聊天 ───────────────────────────────────────────────── */
-    toggleChat() { this.chatOpen = !this.chatOpen; if (this.chatOpen) { this.unreadCount = 0; this.$nextTick(() => this.scrollChat()); } },
-    sendChat() {
-      if (!this.isConnected || !this.wsReady) { ElMessage.warning('请先进入会话'); return; }
-      const c = this.chatInput.trim(); if (!c) return;
-      this.safeSend({ type: 'CHAT_MSG', content: c });
-      this.chatInput = '';
-    },
-    scrollChat() { const el = this.$refs.chatMsgs; if (el) el.scrollTop = el.scrollHeight; },
-    formatTime(ts) { return new Date(ts).toLocaleTimeString('zh-CN', { hour:'2-digit', minute:'2-digit' }); },
-
-    /* ── 剪贴板共享 ─────────────────────────────────────────── */
-    openClipDialog() { this.clipContent = ''; this.showClipDialog = true; },
-    sendClip() {
-      if (!this.isConnected || !this.wsReady) { ElMessage.warning('请先进入会话'); return; }
-      if (!this.clipContent.trim()) { ElMessage.warning('内容不能为空'); return; }
-      this.safeSend({ type: 'CLIP_SHARE', content: this.clipContent.trim() });
-      this.showClipDialog = false; ElMessage.success('已发送给所有成员');
-    },
-    async copyClip(text) {
-      try { await navigator.clipboard.writeText(text); ElMessage.success('已复制到剪贴板'); }
-      catch { ElMessage.warning('请手动选中复制'); }
-      this.showClipReceive = false;
-    },
-
-    /* ── 二维码 ─────────────────────────────────────────────── */
-    async loadQrCode() {
-      this.qrLoading = true;
-      try { const r = await fetch('/qrcode'); this.qrData = await r.json(); }
-      catch { ElMessage.error('二维码生成失败'); }
-      finally { this.qrLoading = false; }
-    },
-
-    /* ── 深色模式 ────────────────────────────────────────────── */
-    toggleDark() {
-      this.darkMode = !this.darkMode;
-      localStorage.setItem('sendfile.dark', this.darkMode ? '1' : '0');
-    },
-
-    /* ── 桌面通知 ──────────────────────────────────────── */
-    async requestNotifyPermission() {
-      if (typeof Notification === 'undefined') { ElMessage.warning('浏览器不支持桌面通知'); return; }
-      if (Notification.permission === 'granted') { ElMessage.success('桌面通知已开启'); return; }
-      const perm = await Notification.requestPermission();
-      this.notifyPermission = perm;
-      if (perm === 'granted') ElMessage.success('桌面通知已开启！');
-      else ElMessage.warning('用户拒绝了通知权限');
-    },
-    showNativeNotif(title, body) {
-      if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
-      try { new Notification(title, { body }); } catch(e) {}
-    },
-
-    /* ── 文件排序 ──────────────────────────────────────── */
-    toggleSort(field) {
-      if (this.sortField === field) this.sortDir = this.sortDir === 'asc' ? 'desc' : 'asc';
-      else { this.sortField = field; this.sortDir = field === 'name' ? 'asc' : 'desc'; }
-    },
-
-    /* ── 图片判断 + 文件图标 ───────────────────────────────── */
-    isImageFile(row) {
-      const t = String(row.fileType || '').toLowerCase();
-      const ext = this.fileExtension(row);
-      return row.kind === 'file' && (t.startsWith('image/') || ['png','jpg','jpeg','gif','webp','bmp','svg'].includes(ext));
-    },
-    fileIcon(row) {
-      const ext = this.fileExtension(row);
-      if (['mp4','webm','mov','avi'].includes(ext)) return '🎬';
-      if (['mp3','wav','flac','m4a','ogg'].includes(ext)) return '🎵';
-      if (ext === 'pdf') return '📄';
-      if (['docx','doc'].includes(ext)) return '📝';
-      if (['zip','rar','7z','tar','gz'].includes(ext)) return '🗂️';
-      if (['js','ts','py','go','java','sh','css','html','json','yml','yaml'].includes(ext)) return '💻';
-      return '📄';
-    },
-
-    /* ── 复制下载链接 ─────────────────────────────────── */
-    async copyFileLink(row) {
-      if (!row || !row.path) { ElMessage.warning('文件链接不可用'); return; }
-      const url = location.origin + row.path;
-      try {
-        await navigator.clipboard.writeText(url);
-        ElMessage.success('下载链接已复制 ✓');
-      } catch(e) {
-        const input = document.createElement('input'); input.value = url;
-        document.body.appendChild(input); input.select();
-        try { document.execCommand('copy'); ElMessage.success('下载链接已复制 ✓'); } catch(e2) { ElMessage.info('链接：' + url); }
-        document.body.removeChild(input);
-      }
-    },
-
-    /* ── 传输历史 ────────────────────────────────────────────── */
-    addHistory(files, ok) {
-      const now = new Date().toLocaleString('zh-CN');
-      for (const f of files) {
-        this.transferHistory.unshift({ name:f.name, size:f.size, time:now, ok });
-      }
-      if (this.transferHistory.length > 200) this.transferHistory = this.transferHistory.slice(0, 200);
-      localStorage.setItem('sendfile.history', JSON.stringify(this.transferHistory));
-    },
-    clearHistory() { this.transferHistory = []; localStorage.removeItem('sendfile.history'); },
-
-    /* ── 工具函数 ────────────────────────────────────────────── */
-    formatSize(size) {
-      const v = Number(size||0);
-      if (v >= 1073741824) return `${(v/1073741824).toFixed(2)} GB`;
-      if (v >= 1048576) return `${(v/1048576).toFixed(2)} MB`;
-      if (v >= 1024) return `${(v/1024).toFixed(2)} KB`;
-      return `${v} B`;
-    },
-    fileSizeText(row) { const s = Number(row.size||0); return s>0 ? this.formatSize(s) : '—'; },
-    fileExtension(row) {
-      const name = String(row.name||row.relPath||'').split('?')[0];
-      const base = name.split('/').pop()||''; const idx = base.lastIndexOf('.');
-      return idx >= 0 ? base.slice(idx+1).toLowerCase() : '';
-    },
-    fileKindText(row) {
-      const t = String(row.fileType||'').toLowerCase(); const ext = this.fileExtension(row);
-      if (t.startsWith('image/') || ['png','jpg','jpeg','gif','webp','bmp','svg'].includes(ext)) return '🖼 图片';
-      if (t.startsWith('video/') || ['mp4','webm','ogg','mov'].includes(ext)) return '🎬 视频';
-      if (t.startsWith('audio/') || ['mp3','wav','ogg','m4a','flac'].includes(ext)) return '🎵 音频';
-      if (t === 'application/pdf' || ext === 'pdf') return '📄 PDF';
-      if (ext === 'docx' || ext === 'doc') return '📝 Word';
-      if (t.startsWith('text/') || ['txt','md','json','js','ts','css','html','xml','csv'].includes(ext)) return '📃 文本';
-      return ext ? ext.toUpperCase() : '文件';
-    },
-    statusText(s) { return ({online:'在线',busy:'忙碌',away:'离开'})[s]||'在线'; },
-    statusType(s) { return ({online:'success',busy:'warning',away:'info'})[s]||'success'; }
-  },
-
-  beforeUnmount() {
-    if (this.isConnected) this.ws?.send(JSON.stringify({ type:'DISCONNECT', message:`${this.deviceName} 已离开页面` }));
-    clearTimeout(this.deviceActionTimer); clearTimeout(this.reconnectTimer);
-    this.ws?.close();
-  }
-}).use(ElementPlus).mount('#app');
-</script>
+    }).use(ElementPlus).mount('#app');
+  </script>
 </body>
+
 </html>
