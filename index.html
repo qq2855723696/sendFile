@@ -392,6 +392,118 @@
       color: var(--primary);
     }
 
+    /* ─── 下载进度浮窗 ─────────────────────────────────────── */
+    .dl-progress-bar {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 2001;
+      width: 300px;
+      padding: 14px 18px;
+      border-radius: 10px;
+      background: var(--panel);
+      box-shadow: 0 4px 24px var(--shadow);
+      border: 1px solid var(--line);
+    }
+
+    /* ─── 拖拽排序句柄 ─────────────────────────────────────── */
+    .drag-handle {
+      cursor: grab;
+      color: var(--muted);
+      font-size: 18px;
+      user-select: none;
+      padding: 2px 4px;
+      border-radius: 4px;
+      display: inline-block;
+      line-height: 1;
+    }
+
+    .drag-handle:hover {
+      background: rgba(37, 99, 235, .10);
+      color: var(--primary);
+    }
+
+    .drag-handle:active {
+      cursor: grabbing;
+    }
+
+    .drag-row-over td {
+      background: rgba(37, 99, 235, .08) !important;
+      outline: none;
+    }
+
+    /* ─── 图片灯箱 ──────────────────────────────────────────── */
+    .lightbox-mask {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: rgba(0, 0, 0, .92);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .lightbox-img {
+      max-width: 90vw;
+      max-height: 88vh;
+      border-radius: 6px;
+      object-fit: contain;
+      user-select: none;
+      pointer-events: none;
+    }
+
+    .lightbox-btn {
+      position: absolute;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, .18);
+      border: none;
+      color: #fff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background .15s;
+      font-size: 26px;
+      line-height: 1;
+    }
+
+    .lightbox-btn:hover {
+      background: rgba(255, 255, 255, .32);
+    }
+
+    .lightbox-prev {
+      top: 50%;
+      left: 20px;
+      transform: translateY(-50%);
+    }
+
+    .lightbox-next {
+      top: 50%;
+      right: 20px;
+      transform: translateY(-50%);
+    }
+
+    .lightbox-close {
+      top: 16px;
+      right: 20px;
+      width: 36px;
+      height: 36px;
+      font-size: 18px;
+    }
+
+    .lightbox-info {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: rgba(255, 255, 255, .75);
+      font-size: 13px;
+      text-align: center;
+      white-space: nowrap;
+    }
+
     /* ─── 上传速度 ───────────────────────────────────────────── */
     .upload-speed {
       margin-top: 4px;
@@ -767,7 +879,8 @@
                   <el-table-column label="人数" prop="memberCount" width="80" align="center"></el-table-column>
                   <el-table-column label="操作" width="110" align="center">
                     <template #default="{ row }">
-                      <el-button type="success" size="small" @click="requestJoinGroup(row)">申请加入</el-button>
+                      <el-button type="success" size="small" @click="requestJoinGroup(row)" :disabled="isConnected"
+                        :title="isConnected ? '已在会话中，请先打卡当前会话' : '申请加入群组'">申请加入</el-button>
                     </template>
                   </el-table-column>
                 </el-table>
@@ -822,7 +935,7 @@
             <div class="dropzone" :class="{ active: dragActive }" @click="chooseFiles" @dragenter.prevent="onDragEnter"
               @dragover.prevent="onDragOver" @dragleave.prevent="onDragLeave" @drop.prevent="onDropFiles">
               <div class="drop-title">拖拽文件到这里上传</div>
-              <div class="drop-copy">支持多文件、文件夹选择，大文件断点续传，最大 500MB/个</div>
+              <div class="drop-copy">支持多文件、文件夹 · 断点续传 · 最大 500MB/个 &nbsp;·&nbsp; <strong>Ctrl+V</strong> 粘贴上传截图</div>
               <el-progress v-if="uploading" :percentage="uploadProgress" :stroke-width="10"
                 style="margin-top:12px"></el-progress>
               <div v-if="uploading && uploadSpeedText" class="upload-speed">⚡ {{ uploadSpeedText }}</div>
@@ -847,12 +960,14 @@
                   prefix-icon="Search"></el-input>
                 <!-- 排序 -->
                 <button class="sort-btn" :class="{ active: sortField==='name' }" @click="toggleSort('name')">名称 {{
-                  sortField==='name' ? (sortDir==='asc' ? '↑' : '↓') : '' }}</button>
+                  sortField==='name' ? (sortDir==='asc' ? '\u2191' : '\u2193') : '' }}</button>
                 <button class="sort-btn" :class="{ active: sortField==='size' }" @click="toggleSort('size')">大小 {{
-                  sortField==='size' ? (sortDir==='asc' ? '↑' : '↓') : '' }}</button>
+                  sortField==='size' ? (sortDir==='asc' ? '\u2191' : '\u2193') : '' }}</button>
                 <button class="sort-btn" :class="{ active: sortField==='uploadedAt' }"
-                  @click="toggleSort('uploadedAt')">时间 {{ sortField==='uploadedAt' ? (sortDir==='asc' ? '↑' : '↓') : ''
+                  @click="toggleSort('uploadedAt')">时间 {{ sortField==='uploadedAt' ? (sortDir==='asc' ? '\u2191' :
+                  '\u2193') : ''
                   }}</button>
+                <button v-if="sortField" class="sort-btn" @click="sortField = ''" title="清除排序，恢复手动顺序">✕ 清除排序</button>
                 <div class="toolbar-right">
                   <el-button size="small" @click="toggleSelectAll">
                     {{ selectedKeys.length === filteredFileList.length && filteredFileList.length > 0 ? '取消全选' : '全选' }}
@@ -895,13 +1010,22 @@
                 </el-table-column>
               </el-table>
 
-              <el-table v-else :data="filteredFileList" border stripe @selection-change="onSelectionChange">
+              <el-table v-else ref="fileTable" :data="pagedFileList" border stripe @selection-change="onSelectionChange"
+                :row-class-name="({ rowIndex }) => rowIndex === dragOverIdx ? 'drag-row-over' : ''">
+                <!-- 拖拽排序句柄 -->
+                <el-table-column label="" width="32" align="center">
+                  <template #default="{ $index }">
+                    <span class="drag-handle" draggable="true" @dragstart.stop="onDragStart($index)"
+                      @dragenter.prevent.stop="dragOverIdx = $index" @dragover.prevent.stop
+                      @dragleave.stop="dragOverIdx = -1" @drop.prevent.stop="onDragDrop($index)" title="拖拽调整顺序">⠇</span>
+                  </template>
+                </el-table-column>
                 <el-table-column type="selection" width="46"></el-table-column>
                 <!-- 缩略图列 -->
                 <el-table-column label="" width="52" align="center">
                   <template #default="{ row }">
-                    <img v-if="isImageFile(row)" :src="row.path" class="thumb" @click="previewFile(row)" :alt="row.name"
-                      loading="lazy">
+                    <img v-if="isImageFile(row)" :src="row.path" class="thumb" @click="openLightbox(row)"
+                      :alt="row.name" loading="lazy">
                     <div v-else class="thumb-placeholder">{{ row.kind === 'folder' ? '📁' : fileIcon(row) }}</div>
                   </template>
                 </el-table-column>
@@ -941,6 +1065,13 @@
                   </template>
                 </el-table-column>
               </el-table>
+              <!-- 分页 -->
+              <div v-if="filteredFileList.length > filePageSize"
+                style="margin-top:12px;display:flex;justify-content:flex-end;align-items:center;gap:10px">
+                <span style="font-size:13px;color:var(--muted)">共 {{ filteredFileList.length }} 个文件</span>
+                <el-pagination v-model:current-page="fileCurrentPage" :page-size="filePageSize"
+                  :total="filteredFileList.length" layout="prev, pager, next" small background></el-pagination>
+              </div>
             </template>
           </div>
         </template>
@@ -1085,6 +1216,34 @@
       </template>
     </el-dialog>
 
+    <!-- ─── 图片灯箱 ──────────────────────────────────────────── -->
+    <div v-if="lightbox.visible" class="lightbox-mask" @click.self="closeLightbox">
+      <button class="lightbox-btn lightbox-close" @click="closeLightbox">✕</button>
+      <button v-if="lightbox.images.length > 1" class="lightbox-btn lightbox-prev" @click="lightboxPrev">‹</button>
+      <img v-if="lightbox.images.length" :src="lightbox.images[lightbox.current].path" class="lightbox-img"
+        :alt="lightbox.images[lightbox.current].name">
+      <div v-else style="color:#fff;font-size:16px">暂无图片</div>
+      <button v-if="lightbox.images.length > 1" class="lightbox-btn lightbox-next" @click="lightboxNext">›</button>
+      <div v-if="lightbox.images.length" class="lightbox-info">
+        <div style="max-width:60vw;overflow:hidden;text-overflow:ellipsis">{{ lightbox.images[lightbox.current].name }}
+        </div>
+        <div v-if="lightbox.images.length > 1" style="margin-top:4px"><!-- 图片计数 -->
+          {{ lightbox.current + 1 }} / {{ lightbox.images.length }}</div>
+      </div>
+    </div>
+
+    <!-- ─── 下载进度浮窗 ───────────────────────────────────────── -->
+    <div v-if="downloadProgress.visible" class="dl-progress-bar">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px">
+        <span style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">⬇️
+          {{ downloadProgress.name }}</span>
+        <span style="font-size:12px;color:var(--muted);flex-shrink:0">{{ downloadProgress.percent }}%</span>
+      </div>
+      <el-progress :percentage="downloadProgress.percent" :stroke-width="8" :show-text="false"></el-progress>
+      <div style="margin-top:6px;font-size:12px;color:var(--muted)">{{ formatSize(downloadProgress.loaded) }} / {{
+        formatSize(downloadProgress.total) }}</div>
+    </div>
+
   </div>
 
 
@@ -1157,6 +1316,16 @@
           notifyPermission: (typeof Notification !== 'undefined') ? Notification.permission : 'denied',
           // 本地开关：只有系统权限已授权 且 用户没有主动关闭时才为 true
           notifyEnabled: (typeof Notification !== 'undefined') && Notification.permission === 'granted' && localStorage.getItem('sendfile.notify') !== '0',
+          /* 下载进度 */
+          downloadProgress: { visible: false, name: '', percent: 0, loaded: 0, total: 0 },
+          /* 图片灯箱 */
+          lightbox: { visible: false, images: [], current: 0 },
+          /* 文件列表分页 */
+          filePageSize: 20,
+          fileCurrentPage: 1,
+          /* 拖拽排序 */
+          dragSrcIdx: -1,
+          dragOverIdx: -1,
           /* 常量 */
           CHUNK_SIZE: 2 * 1024 * 1024,
           CHUNK_CONCURRENCY: 4,
@@ -1177,8 +1346,9 @@
         filteredFileList() {
           const q = this.fileSearch.trim().toLowerCase();
           let list = q ? this.fileList.filter(f => (f.name || '').toLowerCase().includes(q)) : this.fileList.slice();
-          // 排序
+          // sortField 为空时保持原始顺序（支持手动拖拽排序）
           const field = this.sortField;
+          if (!field) return list;
           const dir = this.sortDir === 'asc' ? 1 : -1;
           list.sort((a, b) => {
             let av = a[field], bv = b[field];
@@ -1186,6 +1356,10 @@
             return ((av || 0) - (bv || 0)) * dir;
           });
           return list;
+        },
+        pagedFileList() {
+          const s = (this.fileCurrentPage - 1) * this.filePageSize;
+          return this.filteredFileList.slice(s, s + this.filePageSize);
         }
       },
 
@@ -1195,7 +1369,9 @@
         darkMode(v) {
           document.documentElement.setAttribute('data-theme', v ? 'dark' : 'light');
           localStorage.setItem('sendfile.dark', v ? '1' : '0');
-        }
+        },
+        fileSearch() { this.fileCurrentPage = 1; },
+        sortField() { this.fileCurrentPage = 1; },
       },
 
       mounted() {
@@ -1207,8 +1383,19 @@
             this.darkMode = e.matches;
           }
         });
-        // 初始化通知权限状态（处理刷新后按鈕状态与实际权限不一致的问题）
+        // 初始化通知权限状态
         this.syncNotifyState();
+        // 粘贴上传（Ctrl+V）
+        this._pasteHandler = this.onPaste.bind(this);
+        window.addEventListener('paste', this._pasteHandler);
+        // 灯箱键盘控制
+        this._lightboxKeyHandler = (e) => {
+          if (!this.lightbox.visible) return;
+          if (e.key === 'ArrowLeft') this.lightboxPrev();
+          else if (e.key === 'ArrowRight') this.lightboxNext();
+          else if (e.key === 'Escape') this.closeLightbox();
+        };
+        document.addEventListener('keydown', this._lightboxKeyHandler);
       },
 
       methods: {
@@ -1260,6 +1447,7 @@
             FILE_LIST: () => {
               const prev = this.fileList.length;
               this.fileList = msg.list || [];
+              this.fileCurrentPage = 1; // 新文件列表到达时重置分页
               // 有新文件时发送桌面通知
               const added = this.fileList.length - prev;
               if (added > 0 && !document.hasFocus() && this.isConnected) {
@@ -1348,6 +1536,7 @@
         },
         requestJoinGroup(row) {
           if (!this.localOnline) { ElMessage.warning('请先上线本机设备'); return; }
+          if (this.isConnected) { ElMessage.warning('你已在会话中，请先离开当前会话'); return; }
           this.safeSend({ type: 'GROUP_JOIN_REQ', groupId: row.id });
         },
         replyJoin(allow) {
@@ -1365,6 +1554,7 @@
           if (!session) return;
           this.isConnected = true; this.currentSessionId = session.id;
           this.currentSessionMembers = session.members || []; this.fileList = session.files || [];
+          this.fileCurrentPage = 1;
           this.folderBrowse = null;
         },
         backToList() {
@@ -1373,8 +1563,11 @@
         },
         forceBackToList() {
           this.isConnected = false; this.currentSessionId = ''; this.currentSessionMembers = []; this.fileList = [];
+          this.fileCurrentPage = 1;
           this.folderBrowse = null; this.chatMessages = []; this.chatOpen = false; this.unreadCount = 0;
           this.otherUploads = []; this.selectedKeys = [];
+          this.lightbox = { visible: false, images: [], current: 0 };
+          this.downloadProgress.visible = false;
           this.clearWait(); this.showPinDialog = false; this.showConnectDialog = false; this.showJoinDialog = false;
         },
 
@@ -1553,13 +1746,43 @@
 
         /* ── 下载 / 预览 ────────────────────────────────────────── */
         downloadFile(row) {
-          // 必须挂载到 DOM，否则 Safari 和部分移动端不触发下载
-          const a = document.createElement('a');
-          a.href = row.path;
-          a.download = String(row.name || 'file').split('/').pop();
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
+          const name = String(row.name || 'file').split('/').pop();
+          const total = Number(row.size || 0);
+          // 小文件（<5MB）直接链接下载
+          if (!total || total < 5 * 1024 * 1024) {
+            const a = document.createElement('a');
+            a.href = row.path; a.download = name;
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            return;
+          }
+          // 大文件：用 fetch ReadableStream 展示进度
+          this.downloadProgress = { visible: true, name, percent: 0, loaded: 0, total };
+          fetch(row.path).then(resp => {
+            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+            const reader = resp.body.getReader();
+            const chunks = []; let loaded = 0;
+            const pump = () => reader.read().then(({ done, value }) => {
+              if (done) {
+                this.downloadProgress.percent = 100;
+                const blob = new Blob(chunks, { type: 'application/octet-stream' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url; a.download = name;
+                document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+                return;
+              }
+              chunks.push(value); loaded += value.length;
+              this.downloadProgress.loaded = loaded;
+              this.downloadProgress.percent = Math.min(99, Math.round(loaded / total * 100));
+              return pump();
+            });
+            return pump();
+          }).catch(e => {
+            ElMessage.error('下载失败：' + (e.message || '未知错误'));
+          }).finally(() => {
+            setTimeout(() => { this.downloadProgress.visible = false; }, 1200);
+          });
         },
         downloadFolderZip(row) {
           if (!row?.id) return;
@@ -1722,6 +1945,51 @@
         },
 
         /* ── 图片判断 + 文件图标 ───────────────────────────────── */
+        /* ── 图片灯箱 ───────────────────────────────────────── */
+        openLightbox(row) {
+          const images = this.filteredFileList.filter(f => this.isImageFile(f));
+          const idx = images.findIndex(f => f.path === row.path);
+          this.lightbox = { visible: true, images, current: Math.max(0, idx) };
+        },
+        closeLightbox() { this.lightbox.visible = false; },
+        lightboxPrev() {
+          const len = this.lightbox.images.length; if (!len) return;
+          this.lightbox.current = (this.lightbox.current - 1 + len) % len;
+        },
+        lightboxNext() {
+          const len = this.lightbox.images.length; if (!len) return;
+          this.lightbox.current = (this.lightbox.current + 1) % len;
+        },
+
+        /* ── 粘贴上传 (Ctrl+V) ─────────────────────────────────── */
+        onPaste(e) {
+          if (!this.isConnected) return;
+          const items = Array.from((e.clipboardData || e.originalEvent?.clipboardData)?.items || []);
+          const files = items.filter(i => i.kind === 'file').map(i => i.getAsFile()).filter(Boolean);
+          if (!files.length) return;
+          e.preventDefault();
+          ElMessage.info('粘贴上传 ' + files.length + ' 个文件');
+          this.uploadFiles(files);
+        },
+
+        /* ── 拖拽排序 ───────────────────────────────────────────── */
+        onDragStart(idx) { this.dragSrcIdx = idx; },
+        onDragDrop(idx) {
+          this.dragOverIdx = -1;
+          if (this.dragSrcIdx < 0 || this.dragSrcIdx === idx) { this.dragSrcIdx = -1; return; }
+          const src = this.pagedFileList[this.dragSrcIdx];
+          const dst = this.pagedFileList[idx];
+          if (!src || !dst) { this.dragSrcIdx = -1; return; }
+          const si = this.fileList.indexOf(src);
+          const di = this.fileList.indexOf(dst);
+          if (si < 0 || di < 0) { this.dragSrcIdx = -1; return; }
+          this.fileList.splice(si, 1);
+          this.fileList.splice(di, 0, src);
+          this.sortField = '';
+          this.dragSrcIdx = -1;
+        },
+
+        /* ── 图片判断 + 文件图标 */
         isImageFile(row) {
           const t = String(row.fileType || '').toLowerCase();
           const ext = this.fileExtension(row);
@@ -1796,6 +2064,8 @@
         if (this.isConnected) this.ws?.send(JSON.stringify({ type: 'DISCONNECT', message: `${this.deviceName} 已离开页面` }));
         clearTimeout(this.deviceActionTimer); clearTimeout(this.reconnectTimer);
         this.ws?.close();
+        if (this._pasteHandler) window.removeEventListener('paste', this._pasteHandler);
+        if (this._lightboxKeyHandler) document.removeEventListener('keydown', this._lightboxKeyHandler);
       }
     }).use(ElementPlus).mount('#app');
   </script>
