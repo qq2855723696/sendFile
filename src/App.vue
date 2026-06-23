@@ -8,11 +8,17 @@
     :dark-mode="darkMode"
     :notify-permission="notifyPermission"
     :notify-enabled="notifyEnabled"
+    :current-language="currentLanguage"
+    :supported-languages="supportedLanguages"
+    :connection-status="connectionStatus"
+    :network-latency="networkLatency"
     @open-qr="showQrDialog = true"
     @open-history="showHistoryDialog = true"
+    @open-settings="showSettingsDialog = true"
     @disable-notify="disableNotify"
     @request-notify="requestNotifyPermission"
     @toggle-dark="toggleDark"
+    @change-language="handleLanguageChange"
   />
 
   <main class="layout">
@@ -37,9 +43,11 @@
         :device-list="deviceList"
         :group-list="groupList"
         :radar="radar"
+        :session-notes="sessionNotes"
         @refresh="refreshSocket"
         @connect-device="connectDevice"
         @join-group="requestJoinGroup"
+        @update-session-note="updateSessionNote"
       />
 
       <FileManager
@@ -101,6 +109,7 @@
     </section>
   </main>
 
+  <!-- 移动端设置抽屉 -->
   <MobileSettings
     v-model:open="settingsSheetOpen"
     v-model:device-name="deviceName"
@@ -109,11 +118,15 @@
     :ws-ready="wsReady"
     :local-online="localOnline"
     :loading="loading"
+    :current-language="currentLanguage"
+    :supported-languages="supportedLanguages"
     @online="deviceOnline"
     @offline="deviceOffline"
     @status-change="updateMyStatus"
+    @change-language="handleLanguageChange"
   />
 
+  <!-- 聊天抽屉 -->
   <ChatDrawer
     ref="chatDrawerRef"
     v-model:chat-input="chatInput"
@@ -124,6 +137,31 @@
     @send="sendChat"
   />
 
+  <!-- 首次使用引导 -->
+  <GuideTooltip
+    :visible="isGuideVisible"
+    :steps="guideSteps"
+    @next="handleGuideNext"
+    @skip="handleGuideSkip"
+    @complete="handleGuideComplete"
+  />
+
+  <!-- 设置对话框 -->
+  <SettingsDialog
+    v-model:visible="showSettingsDialog"
+    v-model:notify-enabled="notifyEnabled"
+    v-model:dark-mode="darkMode"
+    v-model:language="currentLanguage"
+    :notify-permission="notifyPermission"
+    :transfer-history="transferHistory"
+    @request-notify="requestNotifyPermission"
+    @disable-notify="disableNotify"
+    @toggle-dark="toggleDark"
+    @change-language="handleLanguageChange"
+    @clear-history="clearHistory"
+  />
+
+  <!-- 其他对话框 -->
   <PinDialog v-model:visible="showPinDialog" v-model:input-pin="inputPin" :target-device-name="targetDeviceName" @submit="submitPin" />
   <ConnectDialog v-model:visible="showConnectDialog" :incoming-request="incomingRequest" @reply="replyConnect" />
   <JoinDialog v-model:visible="showJoinDialog" :incoming-join="incomingJoin" @reply="replyJoin" />
@@ -135,6 +173,9 @@
   <RenameDialog v-model:visible="showRenameDialog" v-model:rename-value="renameValue" @submit="submitRename" />
   <HistoryDialog v-model:visible="showHistoryDialog" :history="transferHistory" @clear="clearHistory" />
   <DownloadProgress :progress="downloadProgress" />
+
+  <!-- 全局通知 -->
+  <NotificationContainer :notifications="notifications" @dismiss="dismissNotification" />
 </template>
 
 <script setup>
@@ -147,6 +188,9 @@ import DownloadProgress from '@/components/DownloadProgress.vue'
 import FileManager from '@/components/FileManager.vue'
 import MobileSettings from '@/components/MobileSettings.vue'
 import SessionLobby from '@/components/SessionLobby.vue'
+import GuideTooltip from '@/components/GuideTooltip.vue'
+import SettingsDialog from '@/components/dialogs/SettingsDialog.vue'
+import NotificationContainer from '@/components/NotificationContainer.vue'
 import ClipDialog from '@/components/dialogs/ClipDialog.vue'
 import ClipReceiveDialog from '@/components/dialogs/ClipReceiveDialog.vue'
 import ConnectDialog from '@/components/dialogs/ConnectDialog.vue'
@@ -171,14 +215,26 @@ import {
 } from '@/api/file'
 import { getQrCode } from '@/api/session'
 import {
+  ANIMATION_DURATION,
   CHUNK_CONCURRENCY,
   CHUNK_SIZE,
+  DEFAULT_LANGUAGE,
+  GUIDE_SHOWN_KEY,
+  GUIDE_STEPS,
   LARGE_DOWNLOAD_SIZE,
   MAX_FILE_SIZE,
   MAX_TOTAL_UPLOAD_SIZE,
+  MAX_VERSIONS_PER_FILE,
+  NOTIFICATION_DURATION,
+  RECONNECT_INTERVAL,
+  SESSION_NOTE_KEY,
   TEXT_PREVIEW_CHARS,
-  TEXT_PREVIEW_LIMIT
+  TEXT_PREVIEW_LIMIT,
+  VERSION_HISTORY_KEY
 } from '@/constants'
+import { useGuide } from '@/composables/useGuide'
+import { useKeyboard } from '@/composables/useKeyboard'
+import { useLanguage } from '@/composables/useLanguage'
 import { useNotification } from '@/composables/useNotification'
 import { useTheme } from '@/composables/useTheme'
 import { useTransferHistory } from '@/composables/useTransferHistory'
@@ -189,6 +245,7 @@ import { fileExtension, formatSize, isImageFile, previewMode } from '@/utils/for
 import { createUuid } from '@/utils/uuid'
 import { downloadByLink, saveBlob } from '@/utils/download'
 
+// ========== 状态 ==========
 const loading = ref(false)
 const deviceActionPending = ref(false)
 const deviceActionTimer = ref(null)
@@ -217,6 +274,7 @@ const folderBrowse = ref(null)
 const dragSrcIdx = ref(-1)
 const dragOverIdx = ref(-1)
 
+// 对话框状态
 const showPinDialog = ref(false)
 const showConnectDialog = ref(false)
 const showJoinDialog = ref(false)
@@ -226,7 +284,7 @@ const showClipDialog = ref(false)
 const showClipReceive = ref(false)
 const showRenameDialog = ref(false)
 const showHistoryDialog = ref(false)
-const settingsSheetOpen = ref(false)
+const showSettingsDialog = ref(false)
 
 const targetIpForPin = ref('')
 const targetDeviceName = ref('')
@@ -235,6 +293,7 @@ const incomingRequest = ref({})
 const incomingJoin = ref({})
 const waitTimer = ref(null)
 
+// 上传状态
 const uploading = ref(false)
 const uploadProgress = ref(0)
 const uploadSpeedText = ref('')
@@ -244,6 +303,7 @@ const dragActive = ref(false)
 const dragDepth = ref(0)
 const otherUploads = ref([])
 
+// 预览和聊天
 const preview = reactive({ visible: false, mode: '', name: '', url: '', text: '', row: null })
 const chatOpen = ref(false)
 const chatMessages = ref([])
@@ -258,6 +318,23 @@ const qrLoading = ref(false)
 const qrData = ref({})
 const downloadProgress = reactive({ visible: false, name: '', percent: 0, loaded: 0, total: 0 })
 
+// 新功能状态
+const isGuideVisible = ref(false)
+const guideSteps = ref(GUIDE_STEPS)
+const currentGuideStep = ref(0)
+const sessionNotes = ref({})
+const fileVersions = ref({})
+const showVersionHistory = ref(false)
+const notifications = ref([])
+const connectionStatus = ref('disconnected')
+const networkLatency = ref(0)
+const currentLanguage = ref(DEFAULT_LANGUAGE)
+const supportedLanguages = ref([
+  { code: 'zh-CN', name: '简体中文' },
+  { code: 'en-US', name: 'English' }
+])
+
+// ========== Composables ==========
 const { darkMode, toggleDark } = useTheme()
 const {
   notifyPermission,
@@ -268,6 +345,8 @@ const {
   showNativeNotif
 } = useNotification()
 const { transferHistory, addHistory, clearHistory } = useTransferHistory()
+const { t, setLanguage, getCurrentLanguage, getSupportedLanguages } = useLanguage()
+const { isGuideShown, showGuide, hideGuide, completeGuide, skipGuide, resetGuide } = useGuide()
 
 const {
   wsReady,
@@ -277,17 +356,38 @@ const {
   closeSocket
 } = useWebSocket({
   onOpen: () => {
+    connectionStatus.value = 'connected'
     if (localOnline.value) sendOnline(false)
+    startLatencyCheck()
   },
   onMessage: handleMessage,
   onDisconnect: () => {
+    connectionStatus.value = 'disconnected'
+    stopLatencyCheck()
     if (isConnected.value) {
       forceBackToList()
       ElMessage.warning('连接已断开，请重新上线并进入会话')
     }
+  },
+  onReconnect: () => {
+    connectionStatus.value = 'reconnecting'
   }
 })
 
+// 键盘快捷键
+useKeyboard({
+  upload: () => chooseFiles(),
+  clipboard: () => openClipDialog(),
+  search: () => document.querySelector('.toolbar input')?.focus(),
+  close: () => {
+    if (showSettingsDialog.value) showSettingsDialog.value = false
+    else if (showHistoryDialog.value) showHistoryDialog.value = false
+    else if (showQrDialog.value) showQrDialog.value = false
+  },
+  selectAll: () => toggleSelectAll()
+})
+
+// ========== Computed ==========
 const currentFolderEntry = computed(() => {
   if (!folderBrowse.value) return null
   return fileList.value.find(file => file.kind === 'folder' && file.id === folderBrowse.value.folderId) || null
@@ -323,29 +423,7 @@ const pagedFileList = computed(() => {
 
 const imagePreviewList = computed(() => filteredFileList.value.filter(file => isImageFile(file)).map(file => file.path))
 
-watch(showQrDialog, visible => {
-  if (visible) loadQrCode()
-})
-
-watch(chatOpen, visible => {
-  if (visible) {
-    unreadCount.value = 0
-    scrollChat()
-  }
-})
-
-watch(fileSearch, () => {
-  fileCurrentPage.value = 1
-})
-
-watch(sortField, () => {
-  fileCurrentPage.value = 1
-})
-
-watch(localOnline, online => {
-  if (online) settingsSheetOpen.value = false
-})
-
+// ========== 方法 ==========
 function resetDeviceAction() {
   loading.value = false
   deviceActionPending.value = false
@@ -364,6 +442,7 @@ function handleMessage(msg) {
       deviceName.value = msg.assignedName || deviceName.value
       localStorage.setItem('sendfile.deviceName', deviceName.value)
       if (msg.showToast !== false) ElMessage.success('设备已上线')
+      addNotification('success', '设备已上线', '您可以开始连接其他设备了')
     },
     OFFLINE_RESULT: () => {
       resetDeviceAction()
@@ -403,6 +482,7 @@ function handleMessage(msg) {
       clearWait()
       applySession(msg.session)
       ElMessage.success('已进入文件传输会话')
+      addNotification('success', '会话已建立', '可以开始传输文件了')
     },
     SESSION_UPDATE: () => applySession(msg.session),
     SESSION_CLOSED: () => {
@@ -425,7 +505,10 @@ function handleMessage(msg) {
       fileList.value = msg.list || []
       fileCurrentPage.value = 1
       const added = fileList.value.length - previous
-      if (added > 0 && !document.hasFocus() && isConnected.value) showNativeNotif('📥 新文件', `收到 ${added} 个新文件`)
+      if (added > 0 && !document.hasFocus() && isConnected.value) {
+        showNativeNotif('📥 新文件', `收到 ${added} 个新文件`)
+        addNotification('info', '收到新文件', `收到 ${added} 个新文件`)
+      }
     },
     ERROR: () => ElMessage.error(msg.message || '服务端错误'),
     CHAT_MSG: () => {
@@ -696,9 +779,11 @@ async function uploadFiles(files) {
     uploadProgress.value = 100
     ElMessage.success('上传完成')
     addHistory(files, true)
+    addNotification('success', '上传完成', `成功上传 ${files.length} 个文件`)
   } catch (error) {
     ElMessage.error(error.message || '上传失败')
     addHistory(files, false)
+    addNotification('error', '上传失败', error.message || '未知错误')
   } finally {
     setTimeout(() => {
       uploading.value = false
@@ -799,6 +884,7 @@ async function batchDownload() {
     fileKeys: selectedKeys.value
   })
   saveBlob(response.data, `sendfile_batch_${Date.now()}.zip`)
+  addNotification('success', '批量下载', '打包完成，开始下载')
 }
 
 async function deleteFile(row) {
@@ -813,7 +899,10 @@ async function deleteFile(row) {
     filePath: row.path || '',
     fileId: row.id || ''
   })
-  if (result.success) ElMessage.success('已删除')
+  if (result.success) {
+    ElMessage.success('已删除')
+    addNotification('success', '删除成功', `已删除 ${row.name}`)
+  }
 }
 
 function openRenameDialog(row) {
@@ -1071,10 +1160,140 @@ async function copyFileLink(row) {
   }
 }
 
+// ========== 新功能 ==========
+
+// 通知系统
+function addNotification(type, title, message = '') {
+  const id = Date.now()
+  notifications.value.push({ id, type, title, message })
+  setTimeout(() => {
+    dismissNotification(id)
+  }, NOTIFICATION_DURATION)
+}
+
+function dismissNotification(id) {
+  const index = notifications.value.findIndex(n => n.id === id)
+  if (index > -1) {
+    notifications.value.splice(index, 1)
+  }
+}
+
+// 引导功能
+function initGuide() {
+  if (!isGuideShown.value) {
+    setTimeout(() => {
+      showGuide()
+    }, 1000)
+  }
+}
+
+function handleGuideNext(step) {
+  currentGuideStep.value = step
+}
+
+function handleGuideSkip() {
+  skipGuide()
+}
+
+function handleGuideComplete() {
+  completeGuide()
+  addNotification('success', '欢迎使用', '您已完成引导，可以开始传输文件了')
+}
+
+// 语言切换
+function handleLanguageChange(lang) {
+  currentLanguage.value = lang
+  addNotification('success', '语言已切换', lang === 'zh-CN' ? '已切换到简体中文' : 'Switched to English')
+}
+
+// 延迟检测
+let latencyTimer = null
+function startLatencyCheck() {
+  stopLatencyCheck()
+  latencyTimer = setInterval(() => {
+    const start = Date.now()
+    safeSend({ type: 'PING' })
+    networkLatency.value = Date.now() - start
+  }, 5000)
+}
+
+function stopLatencyCheck() {
+  if (latencyTimer) {
+    clearInterval(latencyTimer)
+    latencyTimer = null
+  }
+}
+
+// 会话备注
+function loadSessionNotes() {
+  try {
+    const stored = localStorage.getItem(SESSION_NOTE_KEY)
+    sessionNotes.value = stored ? JSON.parse(stored) : {}
+  } catch {
+    sessionNotes.value = {}
+  }
+}
+
+function updateSessionNote({ sessionId, note }) {
+  sessionNotes.value[sessionId] = note
+  localStorage.setItem(SESSION_NOTE_KEY, JSON.stringify(sessionNotes.value))
+}
+
+// 文件版本管理
+function loadFileVersions() {
+  try {
+    const stored = localStorage.getItem(VERSION_HISTORY_KEY)
+    fileVersions.value = stored ? JSON.parse(stored) : {}
+  } catch {
+    fileVersions.value = {}
+  }
+}
+
+function saveFileVersion(fileId, versionData) {
+  if (!fileVersions.value[fileId]) {
+    fileVersions.value[fileId] = []
+  }
+  fileVersions.value[fileId].unshift(versionData)
+  if (fileVersions.value[fileId].length > MAX_VERSIONS_PER_FILE) {
+    fileVersions.value[fileId] = fileVersions.value[fileId].slice(0, MAX_VERSIONS_PER_FILE)
+  }
+  localStorage.setItem(VERSION_HISTORY_KEY, JSON.stringify(fileVersions.value))
+}
+
+// ========== Watchers ==========
+watch(showQrDialog, visible => {
+  if (visible) loadQrCode()
+})
+
+watch(chatOpen, visible => {
+  if (visible) {
+    unreadCount.value = 0
+    scrollChat()
+  }
+})
+
+watch(fileSearch, () => {
+  fileCurrentPage.value = 1
+})
+
+watch(sortField, () => {
+  fileCurrentPage.value = 1
+})
+
+watch(localOnline, online => {
+  if (online) settingsSheetOpen.value = false
+})
+
+// ========== Lifecycle ==========
 onMounted(() => {
   connectSocket()
   syncNotifyState()
   window.addEventListener('paste', onPaste)
+
+  // 初始化新功能
+  initGuide()
+  loadSessionNotes()
+  loadFileVersions()
 })
 
 onBeforeUnmount(() => {
@@ -1083,6 +1302,217 @@ onBeforeUnmount(() => {
   clearTimeout(waitTimer.value)
   closeSocket()
   window.removeEventListener('paste', onPaste)
+  stopLatencyCheck()
 })
 </script>
 
+<style>
+/* 全局样式 */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.layout {
+  display: flex;
+  height: calc(100vh - 60px);
+  overflow: hidden;
+}
+
+.panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid #ebeef5;
+  background: #fff;
+}
+
+.panel-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.panel-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .layout {
+    flex-direction: column;
+    height: calc(100vh - 50px);
+  }
+
+  .panel-header {
+    padding: 12px 16px;
+  }
+
+  .panel-body {
+    padding: 16px;
+  }
+}
+
+/* 动画 */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+/* 滚动条 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+</style>
+
+<style scoped>
+/* 局部样式 */
+.actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: #909399;
+  font-size: 14px;
+}
+
+.stats {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.stat {
+  flex: 1;
+  text-align: center;
+  padding: 16px;
+  background: #f5f7fa;
+  border-radius: 8px;
+}
+
+.stat-label {
+  font-size: 13px;
+  color: #909399;
+  margin-bottom: 8px;
+}
+
+.stat-value {
+  font-size: 24px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.member-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.upload-notifs {
+  margin-bottom: 16px;
+}
+
+.upload-notif {
+  padding: 12px;
+  background: #f0f9eb;
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+.notif-label {
+  font-size: 13px;
+  color: #606266;
+  margin-bottom: 8px;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.toolbar-right {
+  margin-left: auto;
+}
+
+.sort-btn {
+  padding: 6px 12px;
+  border: 1px solid #dcdfe6;
+  background: #fff;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #606266;
+  transition: all 0.2s;
+}
+
+.sort-btn:hover {
+  border-color: #409eff;
+  color: #409eff;
+}
+
+.sort-btn.active {
+  background: #409eff;
+  border-color: #409eff;
+  color: #fff;
+}
+
+.chat-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  background: #f56c6c;
+  color: #fff;
+  border-radius: 10px;
+  font-size: 12px;
+  margin-left: 4px;
+}
+</style>

@@ -2,7 +2,12 @@
   <template v-if="!isConnected">
     <div class="panel-header">
       <h2 class="panel-title">会话大厅</h2>
-      <el-button size="small" @click="$emit('refresh')">刷新连接</el-button>
+      <div class="header-actions">
+        <el-button size="small" @click="showNoteDialog = true">
+          📝 备注
+        </el-button>
+        <el-button size="small" @click="$emit('refresh')">刷新连接</el-button>
+      </div>
     </div>
     <div class="panel-body">
       <div class="stats">
@@ -88,11 +93,12 @@
 </template>
 
 <script setup>
+import { ref } from 'vue'
 import { statusText, statusType } from '@/utils/format'
 
 const activeTabModel = defineModel('activeTab', { type: String, default: 'devices' })
 
-defineProps({
+const props = defineProps({
   isConnected: Boolean,
   localOnline: Boolean,
   deviceList: { type: Array, default: () => [] },
@@ -100,9 +106,31 @@ defineProps({
   radar: {
     type: Object,
     default: () => ({ onlineCount: 0, activeSessionCount: 0, activeTransferCount: 0, devices: [], sessions: [] })
+  },
+  sessionNotes: {
+    type: Object,
+    default: () => ({})
   }
 })
 
-defineEmits(['refresh', 'connect-device', 'join-group'])
+const emit = defineEmits(['refresh', 'connect-device', 'join-group', 'update-session-note'])
+
+const showNoteDialog = ref(false)
+const noteSessionId = ref('')
+const noteContent = ref('')
+
+function openNoteDialog(sessionId) {
+  noteSessionId.value = sessionId
+  noteContent.value = props.sessionNotes[sessionId] || ''
+  showNoteDialog.value = true
+}
+
+function saveNote() {
+  emit('update-session-note', {
+    sessionId: noteSessionId.value,
+    note: noteContent.value.trim()
+  })
+  showNoteDialog.value = false
+}
 </script>
 
