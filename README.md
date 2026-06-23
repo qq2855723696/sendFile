@@ -2,6 +2,10 @@
 
 > 近在同网，传输即达。无需登录、无需公网、无需安装客户端。
 
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)
+![Vue](https://img.shields.io/badge/vue-3.x-brightgreen.svg)
+
 ---
 
 ## 为什么做这个？
@@ -26,21 +30,23 @@
 
 ### 后端：Node.js + Express + WebSocket
 
-- **零配置部署**：单个 `node server.js` 命令即可启动，跨平台（Windows / macOS / Linux）
+- **零配置部署**：单个 `node server/index.js` 命令即可启动，跨平台（Windows / macOS / Linux）
 - **WebSocket 实时推送**：设备上线/下线、文件列表变更、聊天消息，所有状态变化秒级同步到所有在线设备
 - **分片上传架构**：将大文件切成 2MB 分片并发上传，突破内存限制，支持 500MB 超大文件
+- **自动过期清理**：每小时自动清理 24 小时前上传且不在活跃会话中的文件
 
-### 前端：Vue 3 + Element Plus（无构建工具）
+### 前端：Vue 3 + Element Plus + Vite
 
-- **浏览器直读**：无需 Webpack/Vite 打包，`index.html` 直接被 Express 托管，任何设备用浏览器即可访问
-- **响应式 UI**：Element Plus 提供完整的 PC 端与移动端组件（el-image 图片预览、el-drawer 底部抽屉、el-table 文件列表、el-pagination 分页等），深色模式自动跟随或手动切换
-- **Vue 3 Composition-ready**：响应式数据驱动，代码结构清晰，易于维护和扩展
+- **现代化构建**：Vite 提供极速的开发体验和优化的生产构建
+- **组件化架构**：Vue 3 Composition API + `<script setup>`，代码结构清晰，易于维护
+- **Element Plus**：提供完整的 PC 端与移动端组件（el-image 图片预览、el-drawer 底部抽屉、el-table 文件列表、el-pagination 分页等）
+- **响应式设计**：深色模式自动跟随或手动切换，移动端友好
 
 ### 桌面端：Electron（可选）
 
 - **一键打包**：运行 `npm run electron:dist` 即可生成 Windows NSIS 安装包
 - **保留 Web 访问**：Electron 仅是壳，内嵌的 Express 服务依然对局域网开放，手机同样可以扫码访问
-- **两种模式共存**：不想打包？直接 `node server.js`，局域网所有设备浏览器访问即可
+- **两种模式共存**：不想打包？直接 `node server/index.js`，局域网所有设备浏览器访问即可
 
 ---
 
@@ -93,16 +99,26 @@
 
 ## 快速上手
 
-### 方式一：直接启动（局域网 Web 访问）
+### 环境要求
+
+- **Node.js** >= 18.0.0
+- **npm** >= 9.0.0（或 yarn / pnpm）
+
+### 安装依赖
 
 ```bash
-# 安装依赖
 npm install
+```
 
-# 启动服务
-npm start
-# 或开发模式（自动重载）
+### 方式一：Web 访问（推荐，局域网共享）
+
+```bash
+# 开发模式（自动重载）
 npm run dev
+
+# 或生产模式
+npm run build
+npm start
 ```
 
 启动后终端会显示：
@@ -125,31 +141,186 @@ npm run electron
 
 # 打包为安装程序（Windows）
 npm run electron:dist
-# 打包产物在 dist/ 目录
+# 打包产物在 release/ 目录
 ```
 
 > **注意**：首次运行 `electron:dist` 前，需要 `npm install`（会下载 Electron 二进制，约 100MB，需要网络）。
 
 ---
 
+## 可用命令
+
+| 命令 | 说明 |
+|------|------|
+| `npm run dev` | 开发模式：同时启动后端和 Vite 前端 |
+| `npm run dev:server` | 仅启动后端服务（nodemon 监听） |
+| `npm run dev:web` | 仅启动 Vite 前端开发服务器 |
+| `npm run build` | 构建前端生产版本到 `dist/` |
+| `npm run preview` | 构建并启动生产服务（Express 托管 dist） |
+| `npm start` | 启动生产服务（等同于 `node server/index.js`） |
+| `npm run electron` | 开发模式启动 Electron 应用 |
+| `npm run electron:pack` | 打包 Electron 为解包目录 |
+| `npm run electron:dist` | 打包 Electron 为安装程序（NSIS） |
+
+---
+
+## 项目结构
+
+```
+sendfile/
+├── server/
+│   └── index.js          # Express + WebSocket 后端服务
+├── electron/
+│   └── main.js           # Electron 主进程入口
+├── src/
+│   ├── main.js           # Vue 应用入口
+│   ├── App.vue           # 根组件
+│   ├── style.css         # 全局样式
+│   ├── api/              # API 请求层
+│   │   ├── index.js      # axios 实例配置
+│   │   ├── file.js       # 文件相关 API
+│   │   └── session.js    # 会话相关 API
+│   ├── components/       # 组件
+│   │   ├── AppHeader.vue         # 顶部导航栏
+│   │   ├── DevicePanel.vue       # 设备列表面板
+│   │   ├── SessionLobby.vue      # 会话大厅
+│   │   ├── FileManager.vue       # 文件管理器
+│   │   ├── FileTable.vue         # 文件列表表格
+│   │   ├── FolderBrowser.vue     # 文件夹浏览器
+│   │   ├── UploadZone.vue        # 上传区域
+│   │   ├── ChatDrawer.vue        # 聊天抽屉
+│   │   ├── MobileSettings.vue    # 移动端设置
+│   │   ├── DownloadProgress.vue  # 下载进度条
+│   │   └── dialogs/              # 对话框组件
+│   │       ├── ConnectDialog.vue     # 连接对话框
+│   │       ├── JoinDialog.vue        # 加入会话对话框
+│   │       ├── QrDialog.vue          # 二维码对话框
+│   │       ├── PinDialog.vue         # PIN 码对话框
+│   │       ├── HistoryDialog.vue     # 历史记录对话框
+│   │       ├── PreviewDialog.vue     # 预览对话框
+│   │       ├── ClipDialog.vue        # 剪贴板对话框
+│   │       ├── ClipReceiveDialog.vue # 剪贴板接收对话框
+│   │       ├── RenameDialog.vue      # 重命名对话框
+│   │       └── WaitDialog.vue        # 等待对话框
+│   ├── composables/      # 组合式函数
+│   │   ├── useWebSocket.js      # WebSocket 连接管理
+│   │   ├── useTheme.js          # 主题切换
+│   │   ├── useNotification.js   # 桌面通知
+│   │   └── useTransferHistory.js # 传输历史
+│   ├── constants/        # 常量配置
+│   │   └── index.js
+│   └── utils/            # 工具函数
+│       ├── uuid.js       # UUID 生成
+│       ├── fingerprint.js # 设备指纹
+│       ├── format.js     # 格式化工具
+│       ├── folder.js     # 文件夹处理
+│       └── download.js   # 下载工具
+├── uploads/              # 上传文件存储目录
+│   └── .chunks/          # 分片临时目录（自动清理）
+├── dist/                 # Vite 构建产物
+├── release/              # Electron 打包产物
+├── index.html            # Vite 入口 HTML
+├── vite.config.js        # Vite 配置
+├── package.json          # 项目配置
+├── .env.development      # 开发环境变量
+├── .env.production       # 生产环境变量
+└── README.md             # 本文档
+```
+
+---
+
+## 环境变量
+
+项目支持通过 `.env` 文件配置环境变量：
+
+### `.env.development`
+
+```env
+VITE_DEV_API_TARGET=http://localhost:3001
+VITE_WS_URL=ws://localhost:3001
+```
+
+### `.env.production`
+
+```env
+VITE_API_BASE=/api
+VITE_WS_URL=ws://localhost:3000
+```
+
+### 服务端环境变量
+
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `PORT` | `3000` | 服务端口 |
+| `STRICT_PORT` | `false` | 是否严格使用指定端口（true 时端口占用会报错） |
+
+---
+
+## 技术架构
+
+### 通信流程
+
+```
+┌─────────────┐     WebSocket      ┌─────────────┐
+│   Device A  │◄──────────────────►│   Server    │
+│  (Browser)  │                    │  (Express)  │
+└─────────────┘                    └─────────────┘
+       ▲                                  ▲
+       │                                  │
+       │          WebSocket               │
+       └──────────────────────────────────┘
+┌─────────────┐
+│   Device B  │
+│  (Browser)  │
+└─────────────┘
+```
+
+### 文件上传流程
+
+1. 前端计算文件 hash，检查是否已存在（断点续传）
+2. 将文件切分为 2MB 的分片
+3. 并发上传分片（默认 4 路并发）
+4. 服务端接收分片并暂存
+5. 所有分片上传完成后，发送合并请求
+6. 服务端合并分片为完整文件
+7. 广播文件列表更新给会话内所有成员
+
+### 会话生命周期
+
+1. **创建**：两个设备连接时自动创建会话
+2. **加入**：第三方可申请加入，需群内成员同意
+3. **维护**：实时同步成员状态、文件列表
+4. **离开**：成员离开时更新状态，不足 2 人时自动解散
+
+---
+
 ## 使用场景示例
 
-**场景 1：手机照片传电脑**
+### 场景 1：手机照片传电脑
+
 1. 电脑启动 SendFile，手机扫描二维码打开页面
 2. 手机点击底部浮动按钮打开设置抽屉，上线设备
 3. 电脑端点击「连接」，两端建立会话
 4. 手机选择照片上传，电脑直接下载
 
-**场景 2：多人协作传文件**
+### 场景 2：多人协作传文件
+
 1. 张三与李四建立一对一连接，自动创建群组
 2. 王五在「加入会话」页面申请加入，成员同意即可
 3. 任意成员可以上传文件，所有人可以下载
 4. 会话内还能用聊天功能沟通
 
-**场景 3：传大文件断网重传**
+### 场景 3：传大文件断网重传
+
 1. 开始上传 400MB 文件，传到一半网络中断
 2. 重新连接后，再次选择同一文件上传
 3. 系统自动识别已上传的分片，从中断处续传
+
+### 场景 4：跨操作系统传输
+
+1. Windows 电脑启动 SendFile
+2. macOS / Linux / Android / iOS 设备浏览器访问局域网地址
+3. 建立会话后直接传输文件，无需安装任何客户端
 
 ---
 
@@ -162,31 +333,101 @@ npm run electron:dist
 
 ---
 
-## 项目结构
-
-```
-sendfile/
-├── server.js       # Express + WebSocket 后端服务
-├── main.js         # Electron 主进程入口
-├── index.html      # 前端页面（Vue 3 + Element Plus）
-├── package.json    # 项目配置
-├── start.ps1       # Windows PowerShell 启动脚本
-├── uploads/        # 上传文件存储目录
-│   └── .chunks/    # 分片临时目录（自动清理）
-└── README.md       # 本文档
-```
-
----
-
 ## 安全说明
 
 - SendFile 设计用于**受信任的局域网环境**（家庭、办公室、学校）
 - 通过 PIN 码防止未授权设备接入
 - 文件仅在局域网内传输，不经过任何外部服务器
 - 建议不要在公共 WiFi 环境下使用
+- 上传文件有大小限制（单文件 500MB，单次最多 500 个文件）
+- 服务端每小时自动清理过期文件
+
+---
+
+## 常见问题
+
+### Q: 端口被占用怎么办？
+
+A: 默认情况下，端口占用时会自动递增（3000 → 3001 → 3002...）。如需固定端口，可设置环境变量 `STRICT_PORT=1`。
+
+### Q: 如何修改默认端口？
+
+A: 设置环境变量 `PORT=8080`，或在启动时指定：`PORT=8080 npm start`
+
+### Q: 手机无法访问怎么办？
+
+A: 确保手机和电脑在同一局域网内，检查防火墙设置是否允许该端口访问。
+
+### Q: 文件上传失败？
+
+A: 检查文件大小是否超过 500MB 限制，或单次上传文件数量是否超过 500 个。
+
+### Q: 如何打包为桌面应用？
+
+A: 运行 `npm run electron:dist`，打包产物在 `release/` 目录下。
+
+---
+
+## 贡献指南
+
+欢迎贡献代码！请遵循以下步骤：
+
+1. Fork 本仓库
+2. 创建特性分支：`git checkout -b feature/amazing-feature`
+3. 提交更改：`git commit -m 'Add amazing feature'`
+4. 推送分支：`git push origin feature/amazing-feature`
+5. 提交 Pull Request
+
+### 开发规范
+
+- 使用 Vue 3 Composition API + `<script setup>` 语法
+- 组件命名采用 PascalCase
+- 保持代码简洁，添加必要的注释
+- 提交前运行 `npm run build` 确保构建通过
+
+---
+
+## 更新日志
+
+### v2.0.0 (2026-06-23)
+
+- 前端迁移为 Vue 3 + Vite + `<script setup>`
+- 拆分组件化架构，代码结构更清晰
+- 新增组合式函数：useWebSocket、useTheme、useNotification、useTransferHistory
+- 新增 axios API 层，统一接口管理
+- Vite 增加 `@` 路径别名、局域网开发 host、构建分包配置
+- 开发模式同时启动后端和前端
+- 增加环境变量配置
+
+### v1.0.0 (初始版本)
+
+- 基础文件传输功能
+- WebSocket 实时通信
+- 扫码连接
+- 分片上传与断点续传
 
 ---
 
 ## License
 
-MIT
+MIT License
+
+Copyright (c) 2026 SendFile
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
