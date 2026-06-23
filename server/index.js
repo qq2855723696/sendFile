@@ -1,4 +1,4 @@
-﻿'use strict';
+'use strict';
 
 const express = require('express');
 const WebSocket = require('ws');
@@ -13,7 +13,10 @@ const qrcode = require('qrcode');
 
 const app = express();
 let PORT = Number(process.env.PORT || 3000);
-const UPLOAD_DIR = path.join(__dirname, 'uploads');
+const STRICT_PORT = process.env.STRICT_PORT === '1';
+// __dirname 现在是 server/，uploads 在项目根目录
+const ROOT_DIR = path.join(__dirname, '..');
+const UPLOAD_DIR = path.join(ROOT_DIR, 'uploads');
 const CHUNK_DIR = path.join(UPLOAD_DIR, '.chunks');
 const MAX_FILE_SIZE = 500 * 1024 * 1024;
 const MAX_FILES_PER_UPLOAD = 500;
@@ -24,9 +27,13 @@ fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 fs.mkdirSync(CHUNK_DIR, { recursive: true });
 
 app.use(express.json({ limit: '10mb' }));
-// 只暴露前端入口 + node_modules 静态资源，不暴露源码文件
-app.use('/node_modules', express.static(path.join(__dirname, 'node_modules')));
-app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
+
+// 生产模式：serve Vite 构建产物
+const DIST_DIR = path.join(ROOT_DIR, 'dist');
+if (fs.existsSync(DIST_DIR)) {
+  app.use(express.static(DIST_DIR));
+}
+
 app.use('/files', express.static(UPLOAD_DIR));
 app.get('/favicon.ico', (req, res) => res.status(204).end());
 
@@ -67,12 +74,10 @@ function resolveUploadPath(filePath) {
   return d.startsWith(path.resolve(UPLOAD_DIR)) ? d : null;
 }
 function normalizeIp(raw) {
-  let ip = String(raw || '');
-  // 去除 IPv4 映射的 IPv6 前缀（::ffff:127.0.0.1 → 127.0.0.1）
-  ip = ip.replace('::ffff:', '');
-  // 将 IPv6 本地回环地址转换为 IPv4（::1 → 127.0.0.1）
-  if (ip === '::1') ip = '127.0.0.1';
-  return ip;
+  let ipAddr = String(raw || '');
+  ipAddr = ipAddr.replace('::ffff:', '');
+  if (ipAddr === '::1') ipAddr = '127.0.0.1';
+  return ipAddr;
 }
 function sendTo(ipAddr, payload) {
   const d = devices.get(ipAddr);
@@ -158,15 +163,12 @@ function requireSession(sessionId, uploaderIp) {
 // 启动服务器（支持端口自动递增）
 function startServer(port, originalPort = null) {
   const server = app.listen(port, function () {
-    // 用 server.address() 验证是否真正绑定成功
-    // Windows/Electron 环境下 listen 回调有时会假触发，紧接着再抛 EADDRINUSE
     const addr = server.address();
     if (!addr) return;
 
     PORT = addr.port;
     const serverIp = normalizeIp(ip.address());
 
-    // 有端口切换时，先输出一行说明
     if (originalPort !== null) {
       console.log('[*] Port ' + originalPort + ' is in use, using port ' + PORT + ' instead');
     }
@@ -174,7 +176,6 @@ function startServer(port, originalPort = null) {
     console.log('    Local: http://localhost:' + PORT);
     console.log('    LAN:   http://' + serverIp + ':' + PORT + '\n');
 
-    // 服务启动成功后创建 WebSocket 服务器
     const wss = new WebSocket.Server({ server: server });
 
     wss.on('connection', function (ws, req) {
@@ -190,13 +191,15 @@ function startServer(port, originalPort = null) {
       });
     });
 
-    // 用 Object.assign 只停改属性而不替换对象，确保 Electron 中 require 拿到的引用可以看到更新
     Object.assign(module.exports, { server: server, port: PORT, wss: wss });
   });
 
-  // 端口占用错误处理
   server.on('error', function (err) {
     if (err.code === 'EADDRINUSE') {
+      if (STRICT_PORT) {
+        console.error('[Error] Port ' + port + ' is already in use. Stop the existing process or set PORT to another value.');
+        process.exit(1);
+      }
       const nextPort = port + 1;
       if (nextPort > 65535) {
         console.error('[Error] No available ports found (tried up to 65535)');
@@ -213,7 +216,6 @@ function startServer(port, originalPort = null) {
   return server;
 }
 
-// 启动服务，初始化导出对象（必须引用同一个对象，不能重赋值）
 module.exports = { app: app };
 const server = startServer(PORT);
 
@@ -316,7 +318,7 @@ app.get('/upload-status', function (req, res) {
 app.post('/upload', upload.any(), function (req, res) {
   try {
     const sessionId = String(req.body.sessionId || '').trim();
-    const uploaderIp = normalizeIp(req.ip); // 使用服务端真实 IP，不信任客户端传入的 IP
+    const uploaderIp = normalizeIp(req.ip);
     const session = requireSession(sessionId, uploaderIp);
     if (!session) return res.status(400).json({ success: false, message: '会话已失效，请重新连接' });
     for (const file of req.files || []) {
@@ -332,7 +334,7 @@ app.post('/upload-chunk', chunkUpload.single('chunk'), function (req, res) {
   try {
     const uploadId = String(req.body.uploadId || '').trim();
     const sessionId = String(req.body.sessionId || '').trim();
-    const uploaderIp = normalizeIp(req.ip); // 服务端真实 IP
+    const uploaderIp = normalizeIp(req.ip);
     const chunkIndex = Number(req.body.chunkIndex);
     const totalChunks = Number(req.body.totalChunks);
     if (!requireSession(sessionId, uploaderIp)) return res.status(400).json({ success: false, message: '会话已失效，请重新连接' });
@@ -342,7 +344,6 @@ app.post('/upload-chunk', chunkUpload.single('chunk'), function (req, res) {
       fs.mkdirSync(path.join(CHUNK_DIR, uploadId), { recursive: true });
     }
     fs.writeFileSync(path.join(CHUNK_DIR, uploadId, chunkIndex + '.part'), req.file.buffer);
-    // Broadcast progress
     const meta = chunkUploads.get(uploadId);
     if (meta) {
       try {
@@ -358,7 +359,7 @@ app.post('/upload-chunk', chunkUpload.single('chunk'), function (req, res) {
 app.post('/begin-folder-batch', function (req, res) {
   try {
     const sessionId = String(req.body.sessionId || '').trim();
-    const uploaderIp = normalizeIp(req.ip); // 服务端真实 IP
+    const uploaderIp = normalizeIp(req.ip);
     const batchId = String(req.body.batchId || '').trim();
     const rootName = sanitizeName(req.body.rootName);
     const fileCount = Number(req.body.fileCount);
@@ -377,17 +378,15 @@ app.post('/upload-complete', async function (req, res) {
     const uploadId = String(req.body.uploadId || '').trim();
     const folderBatchId = String(req.body.folderBatchId || '').trim();
     const meta = chunkUploads.get(uploadId);
-    if (!meta) return res.status(400).json({ success: false, message: '\u4e0a\u4f20\u4efb\u52a1\u4e0d\u5b58\u5728' });
+    if (!meta) return res.status(400).json({ success: false, message: '上传任务不存在' });
     const session = requireSession(meta.sessionId, meta.uploaderIp);
-    if (!session) return res.status(400).json({ success: false, message: '\u4f1a\u8bdd\u5df2\u5931\u6548\uff0c\u8bf7\u91cd\u65b0\u8fde\u63a5' });
+    if (!session) return res.status(400).json({ success: false, message: '会话已失效，请重新连接' });
 
-    // 1. 先验证所有分片存在，避免合并一半失败
     for (let i = 0; i < meta.totalChunks; i++) {
       if (!fs.existsSync(path.join(CHUNK_DIR, uploadId, i + '.part')))
-        return res.status(400).json({ success: false, message: '\u5206\u7247\u7f3a\u5931\uff0c\u65e0\u6cd5\u5408\u5e76' });
+        return res.status(400).json({ success: false, message: '分片缺失，无法合并' });
     }
 
-    // 2. 流式合并到临时文件（非阻塞，不卡事件循环）
     const mergedName = Date.now() + '_' + sanitizeName(meta.fileName);
     const mergedPath = path.join(UPLOAD_DIR, mergedName);
     tmpPath = mergedPath + '.tmp';
@@ -407,16 +406,15 @@ app.post('/upload-complete', async function (req, res) {
       out.end();
     });
 
-    // 3. 原子重命名（避免下载到写了一半的文件）
     fs.renameSync(tmpPath, mergedPath);
-    tmpPath = null; // 重命名成功，不再需要清理
+    tmpPath = null;
 
     fs.rmSync(path.join(CHUNK_DIR, uploadId), { recursive: true, force: true });
     chunkUploads.delete(uploadId);
     notifySession(meta.sessionId, { type: 'UPLOAD_PROGRESS', uploadId: uploadId, uploaderIp: meta.uploaderIp, uploaderName: getDeviceName(meta.uploaderIp), fileName: meta.fileName, progress: 100, done: true });
     if (folderBatchId) {
       const batch = folderBatches.get(folderBatchId);
-      if (!batch || batch.sessionId !== meta.sessionId || batch.uploaderIp !== meta.uploaderIp) return res.status(400).json({ success: false, message: '\u6587\u4ef6\u5939\u6279\u6b21\u65e0\u6548\u6216\u5df2\u8fc7\u671f' });
+      if (!batch || batch.sessionId !== meta.sessionId || batch.uploaderIp !== meta.uploaderIp) return res.status(400).json({ success: false, message: '文件夹批次无效或已过期' });
       let relPath = String(meta.relativePath || meta.fileName).replace(/\\/g, '/');
       const rp = batch.rootName + '/';
       if (relPath.startsWith(rp)) relPath = relPath.slice(rp.length);
@@ -433,9 +431,8 @@ app.post('/upload-complete', async function (req, res) {
     notifySession(meta.sessionId, { type: 'FILE_LIST', list: session.files });
     broadcastState(); res.json({ success: true });
   } catch (e) {
-    // 清理可能写了一半的临时文件
     if (tmpPath) try { fs.unlinkSync(tmpPath); } catch (e2) { }
-    res.status(500).json({ success: false, message: '\u6587\u4ef6\u5408\u5e76\u5931\u8d25' });
+    res.status(500).json({ success: false, message: '文件合并失败' });
   }
 });
 
@@ -443,7 +440,7 @@ app.post('/upload-complete', async function (req, res) {
 app.post('/delete-file', function (req, res) {
   try {
     const sessionId = String(req.body.sessionId || '').trim();
-    const uploaderIp = normalizeIp(req.ip); // 服务端真实 IP
+    const uploaderIp = normalizeIp(req.ip);
     const filePath = String(req.body.filePath || '').trim();
     const fileId = String(req.body.fileId || '').trim();
     const session = requireSession(sessionId, uploaderIp);
@@ -464,7 +461,7 @@ app.post('/delete-file', function (req, res) {
 app.post('/rename-file', function (req, res) {
   try {
     const sessionId = String(req.body.sessionId || '').trim();
-    const uploaderIp = normalizeIp(req.ip); // 服务端真实 IP
+    const uploaderIp = normalizeIp(req.ip);
     const filePath = String(req.body.filePath || '').trim();
     const fileId = String(req.body.fileId || '').trim();
     const newName = sanitizeName(String(req.body.newName || '').trim());
@@ -484,7 +481,7 @@ app.post('/rename-file', function (req, res) {
 app.post('/batch-download-zip', function (req, res) {
   try {
     const sessionId = String(req.body.sessionId || '').trim();
-    const rIp = normalizeIp(req.ip); // 服务端真实 IP
+    const rIp = normalizeIp(req.ip);
     const fileKeys = Array.isArray(req.body.fileKeys) ? req.body.fileKeys.map(String) : [];
     const session = requireSession(sessionId, rIp);
     if (!session) return res.status(403).send('无权下载');
@@ -508,7 +505,7 @@ app.get('/download-folder-zip', function (req, res) {
   try {
     const sessionId = String(req.query.sessionId || '').trim();
     const folderId = String(req.query.folderId || '').trim();
-    const rIp = normalizeIp(req.ip); // 服务端真实 IP
+    const rIp = normalizeIp(req.ip);
     const session = requireSession(sessionId, rIp);
     if (!session) return res.status(403).send('无权下载');
     const entry = session.files.find(function (f) { return f.kind === 'folder' && f.id === folderId; });
@@ -539,6 +536,17 @@ app.get('/preview/docx', async function (req, res) {
   } catch (e) { res.status(500).send('Word 文档预览失败'); }
 });
 
+// 生产模式 fallback：所有未匹配路由返回 index.html（SPA history 模式）
+if (fs.existsSync(DIST_DIR)) {
+  app.use((req, res, next) => {
+    if (req.method === 'GET' && req.accepts('html')) {
+      res.sendFile(path.join(DIST_DIR, 'index.html'));
+    } else {
+      next();
+    }
+  });
+}
+
 // Error handler
 app.use(function (err, req, res, next) {
   if (!(err instanceof multer.MulterError)) return next(err);
@@ -567,29 +575,26 @@ setInterval(function () {
   } catch (e) { }
 }, 60 * 60 * 1000);
 
-// 居孤分片超时清理（2小时未完成的任务）
+// 孤立分片超时清理（2小时未完成的任务）
 const CHUNK_EXPIRE_MS = 2 * 60 * 60 * 1000;
 setInterval(function () {
   try {
     const now = Date.now();
-    // 清理内存中超时的 chunkUploads 元数据
     for (const [uploadId, meta] of chunkUploads.entries()) {
       if (meta.createdAt && now - meta.createdAt > CHUNK_EXPIRE_MS) {
         chunkUploads.delete(uploadId);
         try { fs.rmSync(path.join(CHUNK_DIR, uploadId), { recursive: true, force: true }); } catch (e) { }
       }
     }
-    // 清理超时未完成的 folderBatches（上传失败时不会被删除，防止内存泄漏）
     for (const [batchId, batch] of folderBatches.entries()) {
       if (batch.createdAt && now - batch.createdAt > CHUNK_EXPIRE_MS) {
         folderBatches.delete(batchId);
       }
     }
-    // 清理磁盘上居孤的分片目录
     if (fs.existsSync(CHUNK_DIR)) {
       const dirs = fs.readdirSync(CHUNK_DIR);
       for (const dir of dirs) {
-        if (chunkUploads.has(dir)) continue; // 还在使用
+        if (chunkUploads.has(dir)) continue;
         const dp = path.join(CHUNK_DIR, dir);
         try {
           const stat = fs.statSync(dp);

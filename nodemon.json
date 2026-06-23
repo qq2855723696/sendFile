@@ -1,11 +1,12 @@
 {
   "watch": [
-    "server.js",
-    "index.html"
+    "server/"
   ],
-  "ext": "js,html,json",
+  "ext": "js,json",
   "ignore": [
     "uploads/**",
-    "node_modules/**"
+    "node_modules/**",
+    "dist/**",
+    "src/**"
   ]
 }

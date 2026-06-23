@@ -6,12 +6,18 @@ uploads/*
 !uploads/.gitkeep
 uploads/.chunks/
 
-# 打包产物（Electron Builder）
+# 打包产物（Vite + Electron Builder）
 dist/
+release/
 out/
 build/win-unpacked/
 build/mac/
 build/linux-unpacked/
+
+# Vite 缓存与构建
+.vite/
+.cache/
+dist-ssr/
 
 # 系统文件
 .DS_Store
@@ -20,9 +26,12 @@ desktop.ini
 
 # 编辑器
 .vscode/
+!.vscode/extensions.json
+!.vscode/settings.json
 .idea/
 *.swp
 *.swo
+*~
 
 # 日志
 npm-debug.log*
@@ -40,8 +49,24 @@ lerna-debug.log*
 
 # Electron builder 缓存
 .electron-builder-cache/
+electron-builder.yml
 
 # 临时文件
 *.tmp
 *.temp
-.cache/
+*.bak
+!index.html.bak
+
+# OS 相关
+$RECYCLE.BIN/
+
+# 测试覆盖率
+coverage/
+.nyc_output/
+
+# 类型定义缓存
+*.tsbuildinfo
+
+# pnpm
+pnpm-lock.yaml
+node_modules/.pnpm/

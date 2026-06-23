@@ -1,18 +1,17 @@
 'use strict';
 
-const { app, BrowserWindow, shell, Menu, nativeImage } = require('electron');
+const { app, BrowserWindow, shell, Menu } = require('electron');
 const path = require('path');
 
 // ─── 启动 Express 服务 ───────────────────────────────────────
-// 在 Electron 主进程中直接 require server.js，服务随进程启动
 let serverStarted = false;
 let serverModule = null;
 function startServer() {
   if (serverStarted) return;
   serverStarted = true;
   try {
-    // server.js 会自动处理端口递增
-    serverModule = require('./server.js');
+    // server/index.js 会自动处理端口递增
+    serverModule = require('../server/index.js');
   } catch (err) {
     console.error('[Electron] 服务启动失败:', err.message);
   }
@@ -31,31 +30,26 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      webSecurity: false        // 允许加载 localhost 静态资源
+      webSecurity: false
     },
     title: 'SendFile — 局域网文件快传',
     autoHideMenuBar: true,
-    show: false                 // 等内容加载后再显示，避免白屏
+    show: false
   });
 
-  // 去掉默认菜单
   Menu.setApplicationMenu(null);
 
-  // 加载本地服务地址（使用实际启动的端口）
   const PORT = Number(process.env.PORT || 3000);
-  // 等待服务启动后获取实际端口
   setTimeout(() => {
     const actualPort = serverModule && serverModule.port ? serverModule.port : PORT;
     mainWindow.loadURL(`http://localhost:${actualPort}`);
   }, 100);
 
-  // 页面加载完毕后再显示窗口
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
     mainWindow.focus();
   });
 
-  // 外部链接用系统浏览器打开
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (!url.startsWith('http://localhost') && !url.startsWith('http://127.0.0.1')) {
       shell.openExternal(url);
@@ -72,7 +66,6 @@ function createWindow() {
 app.whenReady().then(() => {
   startServer();
 
-  // 给 Express 一点时间绑定端口
   setTimeout(() => {
     createWindow();
   }, 900);
@@ -86,7 +79,6 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
 
-// 捕获未处理异常，防止 Electron 崩溃退出
 process.on('uncaughtException', err => {
   console.error('[Electron] 未捕获异常:', err);
 });
