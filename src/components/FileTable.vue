@@ -4,6 +4,7 @@
     :data="pagedFileList"
     border
     stripe
+    :max-height="maxHeight"
     :row-class-name="({ rowIndex }) => rowIndex === dragOverIdx ? 'drag-row-over' : ''"
     @selection-change="$emit('selection-change', $event)"
   >
@@ -38,50 +39,55 @@
         <div v-else class="thumb-placeholder">{{ row.kind === 'folder' ? '📁' : fileIcon(row) }}</div>
       </template>
     </el-table-column>
-    <el-table-column label="名称" min-width="200">
+    <el-table-column :label="t('file.fileName')" min-width="200">
       <template #default="{ row }">
         <el-button v-if="row.kind === 'folder'" link type="primary" @click="$emit('open-folder', row)">
-          [文件夹] {{ row.name }}
+          [{{ t('file.folderBrowser') }}] {{ row.name }}
         </el-button>
         <span v-else style="cursor:pointer" @click="$emit('preview', row)">{{ row.name }}</span>
       </template>
     </el-table-column>
-    <el-table-column label="类型" width="90" align="center">
-      <template #default="{ row }">{{ row.kind === 'folder' ? '文件夹' : fileKindText(row) }}</template>
+    <el-table-column :label="t('file.fileType')" width="90" align="center">
+      <template #default="{ row }">{{ row.kind === 'folder' ? t('file.folderBrowser') : fileKindText(row) }}</template>
     </el-table-column>
-    <el-table-column label="大小" width="100" align="center">
-      <template #default="{ row }">{{ row.kind === 'folder' ? `${(row.items || []).length} 项` : fileSizeText(row) }}</template>
+    <el-table-column :label="t('file.fileSize')" width="100" align="center">
+      <template #default="{ row }">{{ row.kind === 'folder' ? `${(row.items || []).length} ${t('session.memberCount')}` : fileSizeText(row) }}</template>
     </el-table-column>
-    <el-table-column label="上传者" prop="uploaderName" width="120" />
-    <el-table-column label="时间" prop="time" width="165" />
-    <el-table-column label="操作" width="240" align="center">
+    <el-table-column :label="t('file.uploader')" prop="uploaderName" width="120" />
+    <el-table-column :label="t('file.uploadTime')" prop="time" width="165" />
+    <el-table-column :label="t('common.more')" width="280" fixed="right" align="center">
       <template #default="{ row }">
-        <span class="row-actions">
+        <div class="row-actions">
           <template v-if="row.kind === 'folder'">
-            <el-button type="primary" size="small" @click="$emit('open-folder', row)">打开</el-button>
+            <el-button type="primary" size="small" @click="$emit('open-folder', row)">{{ t('file.preview') }}</el-button>
             <el-button type="success" size="small" @click="$emit('download-folder-zip', row)">ZIP</el-button>
           </template>
           <template v-else>
-            <el-button type="primary" size="small" @click="$emit('preview', row)">预览</el-button>
-            <el-button type="success" size="small" @click="$emit('download', row)">下载</el-button>
+            <el-button type="primary" size="small" @click="$emit('preview', row)">{{ t('file.preview') }}</el-button>
+            <el-button type="success" size="small" @click="$emit('download', row)">{{ t('file.download') }}</el-button>
           </template>
-          <el-button size="small" title="复制下载链接" @click="$emit('copy-link', row)">🔗</el-button>
-          <el-button v-if="row.ip === myRealIp" type="warning" size="small" @click="$emit('rename', row)">改名</el-button>
-          <el-button v-if="row.ip === myRealIp" type="danger" size="small" @click="$emit('delete', row)">删除</el-button>
-        </span>
+          <el-button size="small" :icon="Link" title="复制下载链接" @click="$emit('copy-link', row)" />
+          <el-button v-if="row.ip === myRealIp" type="warning" size="small" @click="$emit('rename', row)">{{ t('file.rename') }}</el-button>
+          <el-button v-if="row.ip === myRealIp" type="danger" size="small" @click="$emit('delete', row)">{{ t('file.delete') }}</el-button>
+        </div>
       </template>
     </el-table-column>
   </el-table>
 </template>
 
 <script setup>
+import { Link } from '@element-plus/icons-vue'
+import { useLanguage } from '@/composables/useLanguage'
 import { fileIcon, fileKindText, fileSizeText, isImageFile } from '@/utils/format'
+
+const { t } = useLanguage()
 
 defineProps({
   pagedFileList: { type: Array, default: () => [] },
   imagePreviewList: { type: Array, default: () => [] },
   myRealIp: String,
-  dragOverIdx: Number
+  dragOverIdx: Number,
+  maxHeight: { type: [String, Number], default: undefined }
 })
 
 defineEmits([
@@ -99,4 +105,3 @@ defineEmits([
   'delete'
 ])
 </script>
-

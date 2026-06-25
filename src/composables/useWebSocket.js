@@ -1,7 +1,7 @@
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
 
-export function useWebSocket({ onOpen, onMessage, onDisconnect }) {
+export function useWebSocket({ onOpen, onMessage, onDisconnect, onReconnect }) {
   const ws = ref(null)
   const wsReady = ref(false)
   const reconnectTimer = ref(null)
@@ -11,7 +11,8 @@ export function useWebSocket({ onOpen, onMessage, onDisconnect }) {
     reconnectTimer.value = null
     const protocol = location.protocol === 'https:' ? 'wss' : 'ws'
     const configuredUrl = import.meta.env.VITE_WS_URL
-    const devPort = location.port === '5173' ? ':3000' : location.port ? `:${location.port}` : ''
+    // 开发模式：Vite 默认 5173，后端默认 3000；生产模式：同端口
+    const devPort = location.port === '5173' ? ':3000' : (location.port ? `:${location.port}` : '')
     const socketUrl = configuredUrl || `${protocol}://${location.hostname}${devPort}`
     if (ws.value && [WebSocket.OPEN, WebSocket.CONNECTING].includes(ws.value.readyState)) return
 
@@ -29,7 +30,10 @@ export function useWebSocket({ onOpen, onMessage, onDisconnect }) {
         ws.value = null
       }
       onDisconnect?.()
-      if (!socket.manualClose) reconnectTimer.value = setTimeout(connectSocket, 1200)
+      if (!socket.manualClose) {
+        onReconnect?.()
+        reconnectTimer.value = setTimeout(connectSocket, 1200)
+      }
     }
 
     socket.onerror = () => {
@@ -37,7 +41,14 @@ export function useWebSocket({ onOpen, onMessage, onDisconnect }) {
     }
 
     socket.onmessage = event => {
-      onMessage?.(JSON.parse(event.data))
+      // 单条异常消息不应中断后续消息处理
+      let data
+      try {
+        data = JSON.parse(event.data)
+      } catch {
+        return
+      }
+      onMessage?.(data)
     }
   }
 

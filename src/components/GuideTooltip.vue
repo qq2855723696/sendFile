@@ -52,7 +52,16 @@ const isMobile = ref(false)
 const currentStepData = computed(() => props.steps[currentStep.value])
 
 const tooltipStyle = computed(() => {
-  if (!targetElement.value) return {}
+  // 该步骤没有对应的高亮目标时居中显示，避免提示框定位丢失贴在左上角
+  if (!targetElement.value) {
+    return {
+      top: '50%',
+      left: '50%',
+      transform: 'translate(-50%, -50%)',
+      width: '90vw',
+      maxWidth: '400px'
+    }
+  }
   const rect = targetElement.value.getBoundingClientRect()
   const isMobileDevice = window.innerWidth < 768
 
@@ -81,11 +90,13 @@ function checkMobile() {
 
 function updateTarget() {
   const step = props.steps[currentStep.value]
-  if (!step?.target) return
-
+  // 始终重置目标：步骤无 target 或找不到元素时置空，避免沿用上一步的定位
+  if (!step?.target) {
+    targetElement.value = null
+    return
+  }
   const selector = `[data-guide="${step.target}"]`
-  const el = document.querySelector(selector)
-  targetElement.value = el
+  targetElement.value = document.querySelector(selector)
 }
 
 function handleNext() {

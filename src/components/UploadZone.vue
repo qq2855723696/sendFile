@@ -8,10 +8,9 @@
     @dragleave.prevent="$emit('drag-leave')"
     @drop.prevent="$emit('drop-files', $event)"
   >
-    <div class="drop-title">拖拽文件到这里上传</div>
+    <div class="drop-title">{{ t('file.dragUpload') }}</div>
     <div class="drop-copy">
-      支持多文件、文件夹 · 断点续传 · 最大 500MB/个 &nbsp;·&nbsp; <strong>Ctrl+V</strong>
-      粘贴上传截图
+      {{ t('file.pasteUpload') }} · 断点续传 · 最大 500MB/个
     </div>
     <el-progress v-if="uploading" :percentage="uploadProgress" :stroke-width="10" style="margin-top:12px" />
     <div v-if="uploading && uploadSpeedText" class="upload-speed">⚡ {{ uploadSpeedText }}</div>
@@ -19,6 +18,9 @@
 </template>
 
 <script setup>
+import { useLanguage } from '@/composables/useLanguage'
+const { t } = useLanguage()
+
 defineProps({
   dragActive: Boolean,
   uploading: Boolean,
@@ -28,4 +30,3 @@ defineProps({
 
 defineEmits(['choose-files', 'drag-enter', 'drag-over', 'drag-leave', 'drop-files'])
 </script>
-

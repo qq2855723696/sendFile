@@ -25,7 +25,6 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
 import { CircleCheckFilled, CircleCloseFilled, WarningFilled, InfoFilled, Close } from '@element-plus/icons-vue'
 
 const props = defineProps({

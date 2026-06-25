@@ -5,7 +5,7 @@ import { GUIDE_SHOWN_KEY } from '@/constants'
  * 首次使用引导状态管理
  */
 export function useGuide() {
-  const isGuideShown = ref(false)
+  const isGuideShown = ref(localStorage.getItem(GUIDE_SHOWN_KEY) === 'true')
   const isGuideVisible = ref(false)
 
   /**

@@ -1,42 +1,42 @@
 <template>
   <aside class="panel" :class="{ 'panel-mobile': isMobile }">
     <div class="panel-header">
-      <h2 class="panel-title">本机设置</h2>
-      <el-tag :type="wsReady ? 'success' : 'info'" effect="plain">{{ wsReady ? '已连接' : '连接中' }}</el-tag>
+      <h2 class="panel-title">{{ t('settings.title') }}</h2>
+      <el-tag :type="wsReady ? 'success' : 'info'" effect="plain">{{ wsReady ? t('device.connected') : t('device.connecting') }}</el-tag>
     </div>
     <div class="panel-body">
       <form @submit.prevent="$emit('online')">
         <div class="field">
-          <label>设备名称</label>
+          <label>{{ t('device.name') }}</label>
           <el-input
             v-model="deviceNameModel"
-            placeholder="例如：办公室电脑"
+            :placeholder="t('device.namePlaceholder')"
             clearable
             :disabled="localOnline"
             data-guide="device-name"
           />
         </div>
         <div class="field">
-          <label>连接 PIN</label>
+          <label>{{ t('device.pinCode') }}</label>
           <el-input
             v-model="pinCodeModel"
-            placeholder="留空表示无需 PIN"
+            :placeholder="t('device.pinPlaceholder')"
             maxlength="12"
             show-password
             :disabled="localOnline"
           />
         </div>
         <div class="field">
-          <label>状态</label>
+          <label>{{ t('device.status') }}</label>
           <el-select
             v-model="deviceStatusModel"
             style="width:100%"
             :disabled="!localOnline"
             @change="$emit('status-change')"
           >
-            <el-option label="在线" value="online" />
-            <el-option label="忙碌" value="busy" />
-            <el-option label="离开" value="away" />
+            <el-option :label="t('device.onlineStatus')" value="online" />
+            <el-option :label="t('device.busyStatus')" value="busy" />
+            <el-option :label="t('device.awayStatus')" value="away" />
           </el-select>
         </div>
         <div class="actions">
@@ -48,7 +48,7 @@
             style="flex:1"
             data-guide="device-online"
           >
-            上线设备
+            {{ t('device.online') }}
           </el-button>
           <el-button
             v-else
@@ -57,37 +57,41 @@
             style="flex:1"
             @click="$emit('offline')"
           >
-            下线设备
+            {{ t('device.offline') }}
           </el-button>
         </div>
       </form>
 
-      <!-- 快捷操作 -->
-      <div class="quick-actions">
-        <el-button size="small" @click="copyMyIp" :disabled="!localOnline">
-          📋 复制 IP
-        </el-button>
-        <el-button size="small" @click="showQr = true" :disabled="!localOnline">
-          📱 显示二维码
-        </el-button>
+      <!-- 本机 IP -->
+      <div class="ip-card" :class="{ 'ip-card--online': localOnline }">
+        <div class="ip-card__label">{{ t('settings.localIp', '本机 IP') }}</div>
+        <div class="ip-card__value">
+          <span v-if="localOnline && props.myRealIp" class="ip-card__addr">{{ props.myRealIp }}</span>
+          <span v-else class="ip-card__addr ip-card__addr--na">{{ localOnline ? t('common.loading') : t('device.pleaseOnline') }}</span>
+          <el-button
+            size="small"
+            type="primary"
+            plain
+            :disabled="!localOnline || !props.myRealIp"
+            :icon="CopyDocument"
+            class="ip-card__btn"
+            @click="copyMyIp"
+          >
+            {{ t('common.copy') }}
+          </el-button>
+        </div>
       </div>
     </div>
-
-    <!-- 二维码对话框 -->
-    <el-dialog v-model="showQr" title="扫码连接" width="300px" align-center>
-      <div class="qr-container">
-        <img v-if="qrData.dataUrl" :src="qrData.dataUrl" alt="QR Code" class="qr-image" />
-        <p v-else>加载中...</p>
-        <p class="qr-url">{{ qrData.url }}</p>
-      </div>
-    </el-dialog>
   </aside>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { getQrCode } from '@/api/session'
+import { CopyDocument } from '@element-plus/icons-vue'
+import { useLanguage } from '@/composables/useLanguage'
+
+const { t } = useLanguage()
 
 const deviceNameModel = defineModel('deviceName', { type: String, default: '' })
 const pinCodeModel = defineModel('pinCode', { type: String, default: '' })
@@ -97,45 +101,44 @@ const props = defineProps({
   wsReady: Boolean,
   localOnline: Boolean,
   loading: Boolean,
-  connectionStatus: {
-    type: String,
-    default: 'disconnected'
-  },
-  networkLatency: {
-    type: Number,
-    default: 0
-  }
+  myRealIp: { type: String, default: '' }
 })
 
 defineEmits(['online', 'offline', 'status-change'])
 
 const isMobile = ref(false)
-const showQr = ref(false)
-const qrData = ref({})
 
 function checkMobile() {
   isMobile.value = window.innerWidth < 768
 }
 
 async function copyMyIp() {
-  try {
-    const ip = localStorage.getItem('sendfile.myIp') || ''
-    if (ip) {
-      await navigator.clipboard.writeText(ip)
-      ElMessage.success('IP 已复制')
-    } else {
-      ElMessage.warning('请先上线设备')
-    }
-  } catch {
-    ElMessage.error('复制失败')
+  const ip = props.myRealIp || localStorage.getItem('sendfile.myIp') || ''
+  if (!ip) {
+    ElMessage.warning(t('device.pleaseOnline'))
+    return
   }
-}
-
-async function loadQrCode() {
   try {
-    qrData.value = await getQrCode()
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(ip)
+      ElMessage.success(t('file.linkCopied'))
+      return
+    }
+  } catch { /* fallback */ }
+  try {
+    const ta = document.createElement('textarea')
+    ta.value = ip
+    ta.style.position = 'fixed'
+    ta.style.left = '-9999px'
+    ta.style.top = '-9999px'
+    document.body.appendChild(ta)
+    ta.focus()
+    ta.select()
+    document.execCommand('copy')
+    document.body.removeChild(ta)
+    ElMessage.success(t('file.linkCopied'))
   } catch {
-    ElMessage.error('二维码加载失败')
+    ElMessage.error(t('errors.unknownError'))
   }
 }
 
@@ -148,100 +151,29 @@ onMounted(() => {
 <style scoped>
 .panel {
   width: 280px;
-  background: #fff;
-  border-right: 1px solid #ebeef5;
+  background: var(--panel);
+  border-right: 1px solid var(--line);
   display: flex;
   flex-direction: column;
 }
-
-.panel-mobile {
-  width: 100%;
-  height: auto;
-  border-right: none;
-  border-bottom: 1px solid #ebeef5;
-}
-
-.panel-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px;
-  border-bottom: 1px solid #ebeef5;
-}
-
-.panel-title {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-  color: #303133;
-}
-
-.panel-body {
-  flex: 1;
-  padding: 16px;
-  overflow-y: auto;
-}
-
-.field {
-  margin-bottom: 16px;
-}
-
-.field label {
-  display: block;
-  margin-bottom: 6px;
-  font-size: 13px;
-  color: #606266;
-  font-weight: 500;
-}
-
-.actions {
-  margin-top: 20px;
-}
-
-.quick-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid #ebeef5;
-}
-
-.quick-actions .el-button {
-  flex: 1;
-}
-
-.qr-container {
-  text-align: center;
-  padding: 20px;
-}
-
-.qr-image {
-  width: 200px;
-  height: 200px;
-  border: 1px solid #ebeef5;
-  border-radius: 8px;
-}
-
-.qr-url {
-  margin-top: 12px;
-  font-size: 13px;
-  color: #909399;
-  word-break: break-all;
-}
-
-/* 响应式 */
+.panel-mobile { width: 100%; height: auto; border-right: none; border-bottom: 1px solid var(--line); }
+.panel-header { display: flex; justify-content: space-between; align-items: center; padding: 16px; border-bottom: 1px solid var(--line); }
+.panel-title { margin: 0; font-size: 16px; font-weight: 600; color: var(--text); }
+.panel-body { flex: 1; padding: 16px; overflow-y: auto; }
+.field { margin-bottom: 16px; }
+.field label { display: block; margin-bottom: 6px; font-size: 13px; color: var(--muted); font-weight: 500; }
+.actions { margin-top: 20px; }
+.ip-card { margin-top: 24px; padding: 14px 16px; background: var(--stat-bg); border: 1px solid var(--line); border-radius: 8px; transition: border-color 0.3s, background 0.3s; }
+.ip-card--online { background: rgba(37, 99, 235, 0.06); border-color: rgba(37, 99, 235, 0.25); }
+[data-theme="dark"] .ip-card--online { background: rgba(59, 130, 246, 0.12); border-color: rgba(59, 130, 246, 0.30); }
+.ip-card__label { font-size: 12px; color: var(--muted); margin-bottom: 8px; font-weight: 500; }
+.ip-card__value { display: flex; align-items: center; gap: 10px; }
+.ip-card__addr { flex: 1; font-size: 15px; font-weight: 600; color: var(--text); font-family: 'SF Mono', 'Fira Code', monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ip-card__addr--na { font-weight: 400; font-size: 13px; color: var(--muted); font-family: inherit; }
+.ip-card__btn { flex-shrink: 0; }
 @media (max-width: 768px) {
-  .panel {
-    width: 100%;
-    max-height: 200px;
-  }
-
-  .panel-body {
-    padding: 12px;
-  }
-
-  .field {
-    margin-bottom: 12px;
-  }
+  .panel { width: 100%; max-height: 200px; }
+  .panel-body { padding: 12px; }
+  .field { margin-bottom: 12px; }
 }
 </style>

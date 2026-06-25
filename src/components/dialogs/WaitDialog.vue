@@ -1,15 +1,16 @@
 <template>
-  <el-dialog v-model="visible" title="等待确认" width="340px" :close-on-click-modal="false">
-    <p>连接请求已发送，正在等待对方确认…</p>
+  <el-dialog v-model="visible" :title="t('device.waitResponse')" width="340px" :close-on-click-modal="false">
+    <p>{{ t('device.waitResponse') }}…</p>
     <template #footer>
-      <el-button @click="$emit('cancel')">取消请求</el-button>
+      <el-button @click="$emit('cancel')">{{ t('common.cancel') }}</el-button>
     </template>
   </el-dialog>
 </template>
 
 <script setup>
-const visible = defineModel('visible', { type: Boolean, default: false })
+import { useLanguage } from '@/composables/useLanguage'
+const { t } = useLanguage()
 
+const visible = defineModel('visible', { type: Boolean, default: false })
 defineEmits(['cancel'])
 </script>
-

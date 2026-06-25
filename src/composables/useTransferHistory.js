@@ -1,7 +1,11 @@
 import { ref } from 'vue'
 
 export function useTransferHistory() {
-  const transferHistory = ref(JSON.parse(localStorage.getItem('sendfile.history') || '[]'))
+  let stored = []
+  try {
+    stored = JSON.parse(localStorage.getItem('sendfile.history') || '[]')
+  } catch { /* 忽略损坏的历史数据 */ }
+  const transferHistory = ref(Array.isArray(stored) ? stored : [])
 
   function addHistory(files, ok) {
     const now = new Date().toLocaleString('zh-CN')

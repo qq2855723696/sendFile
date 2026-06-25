@@ -272,6 +272,8 @@ function handleSocketMessage(ws, clientIp, msg) {
       notifySession(gId, { type: 'MEMBER_JOINED', memberIp: rIp, memberName: getDeviceName(rIp), message: getDeviceName(rIp) + ' 已加入会话' });
       broadcastState(); break;
     }
+    case 'PING':
+      if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'PONG', t: msg.t })); break;
     case 'DISCONNECT': leaveSession(clientIp, msg.message || (getDeviceName(clientIp) + ' 已离开会话')); break;
     case 'OFFLINE':
       if (!isActiveSocket(clientIp, ws)) return;
@@ -288,6 +290,30 @@ function handleSocketMessage(ws, clientIp, msg) {
       const content = String(msg.content || '').trim().slice(0, 50000); if (!content) return;
       notifySession(sid, { type: 'CLIP_SHARE', fromIp: clientIp, fromName: getDeviceName(clientIp), content: content, timestamp: Date.now() }); break;
     }
+    // 分页查询
+    case 'GET_DEVICES': {
+      const dPage = Math.max(1, Number(msg.page) || 1);
+      const dSize = Math.min(100, Math.max(1, Number(msg.pageSize) || 10));
+      const all = Array.from(devices.values()).filter(function (d) { return d.ip !== clientIp && !deviceSession.has(d.ip); }).map(publicDevice);
+      const dItems = all.slice((dPage - 1) * dSize, dPage * dSize);
+      sendTo(clientIp, { type: 'DEVICES_PAGE', items: dItems, total: all.length, page: dPage, pageSize: dSize }); break;
+    }
+    case 'GET_GROUPS': {
+      const gPage = Math.max(1, Number(msg.page) || 1);
+      const gSize = Math.min(100, Math.max(1, Number(msg.pageSize) || 10));
+      const allGroups = Array.from(sessions.values()).map(function (s) {
+        return { id: s.id, memberCount: s.members.size, members: Array.from(s.members).map(function (ip) { return { ip: ip, name: getDeviceName(ip), status: getDeviceStatus(ip) }; }) };
+      });
+      const gItems = allGroups.slice((gPage - 1) * gSize, gPage * gSize);
+      sendTo(clientIp, { type: 'GROUPS_PAGE', items: gItems, total: allGroups.length, page: gPage, pageSize: gSize }); break;
+    }
+    case 'GET_RADAR': {
+      const rPage = Math.max(1, Number(msg.page) || 1);
+      const rSize = Math.min(100, Math.max(1, Number(msg.pageSize) || 10));
+      const allDevices = Array.from(devices.values()).map(publicDevice);
+      const rItems = allDevices.slice((rPage - 1) * rSize, rPage * rSize);
+      sendTo(clientIp, { type: 'RADAR_PAGE', items: rItems, total: allDevices.length, page: rPage, pageSize: rSize, onlineCount: devices.size, activeSessionCount: sessions.size, activeTransferCount: chunkUploads.size }); break;
+    }
     default: break;
   }
 }
@@ -295,11 +321,26 @@ function handleSocketMessage(ws, clientIp, msg) {
 // QR code
 app.get('/qrcode', async function (req, res) {
   try {
-    const serverIp = normalizeIp(ip.address());
+    let serverIp = normalizeIp(ip.address());
+    // 优先使用 IPv4 地址，避免 IPv6 导致手机无法访问
+    if (serverIp.includes(':')) {
+      try {
+        const interfaces = require('os').networkInterfaces();
+        outer:
+        for (const name of Object.keys(interfaces)) {
+          for (const iface of interfaces[name]) {
+            if (iface.family === 'IPv4' && !iface.internal) {
+              serverIp = iface.address;
+              break outer;
+            }
+          }
+        }
+      } catch (e) { /* 忽略 */ }
+    }
     const url = 'http://' + serverIp + ':' + PORT;
-    const dataUrl = await qrcode.toDataURL(url, { width: 280, margin: 2 });
+    const dataUrl = await qrcode.toDataURL(url, { width: 280, margin: 2, errorCorrectionLevel: 'L' });
     res.json({ url: url, dataUrl: dataUrl });
-  } catch (e) { res.status(500).json({ error: 'QR code error' }); }
+  } catch (e) { res.status(500).json({ error: 'QR code error: ' + e.message }); }
 });
 
 // Resume upload

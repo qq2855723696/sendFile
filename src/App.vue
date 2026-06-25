@@ -14,7 +14,6 @@
     :network-latency="networkLatency"
     @open-qr="showQrDialog = true"
     @open-history="showHistoryDialog = true"
-    @open-settings="showSettingsDialog = true"
     @disable-notify="disableNotify"
     @request-notify="requestNotifyPermission"
     @toggle-dark="toggleDark"
@@ -29,6 +28,7 @@
       :ws-ready="wsReady"
       :local-online="localOnline"
       :loading="loading"
+      :my-real-ip="myRealIp"
       @online="deviceOnline"
       @offline="deviceOffline"
       @status-change="updateMyStatus"
@@ -43,11 +43,9 @@
         :device-list="deviceList"
         :group-list="groupList"
         :radar="radar"
-        :session-notes="sessionNotes"
         @refresh="refreshSocket"
         @connect-device="connectDevice"
         @join-group="requestJoinGroup"
-        @update-session-note="updateSessionNote"
       />
 
       <FileManager
@@ -66,7 +64,7 @@
         :file-list="fileList"
         :filtered-file-list="filteredFileList"
         :paged-file-list="pagedFileList"
-        :file-page-size="filePageSize"
+        v-model:file-page-size="filePageSize"
         :sort-field="sortField"
         :sort-dir="sortDir"
         :folder-browse="folderBrowse"
@@ -118,12 +116,9 @@
     :ws-ready="wsReady"
     :local-online="localOnline"
     :loading="loading"
-    :current-language="currentLanguage"
-    :supported-languages="supportedLanguages"
     @online="deviceOnline"
     @offline="deviceOffline"
     @status-change="updateMyStatus"
-    @change-language="handleLanguageChange"
   />
 
   <!-- 聊天抽屉 -->
@@ -146,20 +141,48 @@
     @complete="handleGuideComplete"
   />
 
-  <!-- 设置对话框 -->
-  <SettingsDialog
-    v-model:visible="showSettingsDialog"
-    v-model:notify-enabled="notifyEnabled"
-    v-model:dark-mode="darkMode"
-    v-model:language="currentLanguage"
-    :notify-permission="notifyPermission"
-    :transfer-history="transferHistory"
-    @request-notify="requestNotifyPermission"
-    @disable-notify="disableNotify"
-    @toggle-dark="toggleDark"
-    @change-language="handleLanguageChange"
-    @clear-history="clearHistory"
-  />
+  <!-- 页面底部 -->
+  <footer class="app-footer">
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <svg class="footer-logo-svg" viewBox="0 0 40 40" width="20" height="20">
+          <defs>
+            <linearGradient id="footerLogoGrad" x1="0" y1="0" x2="40" y2="40">
+              <stop offset="0%" stop-color="#2563eb"/>
+              <stop offset="100%" stop-color="#10b981"/>
+            </linearGradient>
+          </defs>
+          <rect x="4" y="6" width="32" height="28" rx="5" fill="url(#footerLogoGrad)"/>
+          <rect x="10" y="12" width="20" height="3" rx="1.5" fill="#fff" opacity="0.9"/>
+          <rect x="10" y="18" width="15" height="2.5" rx="1.25" fill="#fff" opacity="0.55"/>
+          <circle cx="30" cy="30" r="8" fill="#10b981"/>
+          <path d="M26 30l3 3 5-5" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <strong>SendFile</strong>
+        <span class="footer-badge">v2.0.0</span>
+      </div>
+
+      <div class="footer-links">
+        <a class="footer-link" href="#" title="局域网文件快传">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/>
+            <path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/>
+          </svg>
+          文档
+        </a>
+        <a class="footer-link" href="#" title="MIT 开源协议">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+          MIT License
+        </a>
+      </div>
+
+      <span class="footer-copy">© 2026 SendFile</span>
+    </div>
+  </footer>
 
   <!-- 其他对话框 -->
   <PinDialog v-model:visible="showPinDialog" v-model:input-pin="inputPin" :target-device-name="targetDeviceName" @submit="submitPin" />
@@ -189,7 +212,6 @@ import FileManager from '@/components/FileManager.vue'
 import MobileSettings from '@/components/MobileSettings.vue'
 import SessionLobby from '@/components/SessionLobby.vue'
 import GuideTooltip from '@/components/GuideTooltip.vue'
-import SettingsDialog from '@/components/dialogs/SettingsDialog.vue'
 import NotificationContainer from '@/components/NotificationContainer.vue'
 import ClipDialog from '@/components/dialogs/ClipDialog.vue'
 import ClipReceiveDialog from '@/components/dialogs/ClipReceiveDialog.vue'
@@ -226,7 +248,6 @@ import {
   MAX_TOTAL_UPLOAD_SIZE,
   MAX_VERSIONS_PER_FILE,
   NOTIFICATION_DURATION,
-  RECONNECT_INTERVAL,
   SESSION_NOTE_KEY,
   TEXT_PREVIEW_CHARS,
   TEXT_PREVIEW_LIMIT,
@@ -284,7 +305,7 @@ const showClipDialog = ref(false)
 const showClipReceive = ref(false)
 const showRenameDialog = ref(false)
 const showHistoryDialog = ref(false)
-const showSettingsDialog = ref(false)
+const settingsSheetOpen = ref(false)
 
 const targetIpForPin = ref('')
 const targetDeviceName = ref('')
@@ -319,7 +340,6 @@ const qrData = ref({})
 const downloadProgress = reactive({ visible: false, name: '', percent: 0, loaded: 0, total: 0 })
 
 // 新功能状态
-const isGuideVisible = ref(false)
 const guideSteps = ref(GUIDE_STEPS)
 const currentGuideStep = ref(0)
 const sessionNotes = ref({})
@@ -328,13 +348,13 @@ const showVersionHistory = ref(false)
 const notifications = ref([])
 const connectionStatus = ref('disconnected')
 const networkLatency = ref(0)
-const currentLanguage = ref(DEFAULT_LANGUAGE)
 const supportedLanguages = ref([
   { code: 'zh-CN', name: '简体中文' },
   { code: 'en-US', name: 'English' }
 ])
 
 // ========== Composables ==========
+const { t } = useLanguage()
 const { darkMode, toggleDark } = useTheme()
 const {
   notifyPermission,
@@ -345,8 +365,11 @@ const {
   showNativeNotif
 } = useNotification()
 const { transferHistory, addHistory, clearHistory } = useTransferHistory()
-const { t, setLanguage, getCurrentLanguage, getSupportedLanguages } = useLanguage()
-const { isGuideShown, showGuide, hideGuide, completeGuide, skipGuide, resetGuide } = useGuide()
+const { setLanguage, getCurrentLanguage } = useLanguage()
+// 语言选择器状态（独立 ref，通过 setLanguage 与 i18n 模块保持同步）
+const currentLanguage = ref(getCurrentLanguage())
+watch(currentLanguage, lang => setLanguage(lang))
+const { isGuideShown, isGuideVisible, showGuide, hideGuide, completeGuide, skipGuide, resetGuide } = useGuide()
 
 const {
   wsReady,
@@ -366,7 +389,7 @@ const {
     stopLatencyCheck()
     if (isConnected.value) {
       forceBackToList()
-      ElMessage.warning('连接已断开，请重新上线并进入会话')
+      ElMessage.warning(t('device.disconnected'))
     }
   },
   onReconnect: () => {
@@ -380,8 +403,7 @@ useKeyboard({
   clipboard: () => openClipDialog(),
   search: () => document.querySelector('.toolbar input')?.focus(),
   close: () => {
-    if (showSettingsDialog.value) showSettingsDialog.value = false
-    else if (showHistoryDialog.value) showHistoryDialog.value = false
+    if (showHistoryDialog.value) showHistoryDialog.value = false
     else if (showQrDialog.value) showQrDialog.value = false
   },
   selectAll: () => toggleSelectAll()
@@ -435,14 +457,15 @@ function handleMessage(msg) {
   const handlers = {
     MY_IP: () => {
       myRealIp.value = msg.ip
+      localStorage.setItem('sendfile.myIp', msg.ip)
     },
     ONLINE_RESULT: () => {
       resetDeviceAction()
       localOnline.value = true
       deviceName.value = msg.assignedName || deviceName.value
       localStorage.setItem('sendfile.deviceName', deviceName.value)
-      if (msg.showToast !== false) ElMessage.success('设备已上线')
-      addNotification('success', '设备已上线', '您可以开始连接其他设备了')
+      if (msg.showToast !== false) ElMessage.success(t('device.deviceOnline'))
+      addNotification('success', t('device.deviceOnline'), t('device.deviceOnlineDesc'))
     },
     OFFLINE_RESULT: () => {
       resetDeviceAction()
@@ -451,7 +474,7 @@ function handleMessage(msg) {
       groupList.value = []
       radar.value = { onlineCount: 0, activeSessionCount: 0, activeTransferCount: 0, devices: [], sessions: [] }
       forceBackToList()
-      ElMessage.success('设备已下线')
+      ElMessage.success(t('device.deviceOffline'))
     },
     DEVICE_LIST: () => {
       deviceList.value = msg.list || []
@@ -481,8 +504,8 @@ function handleMessage(msg) {
     SESSION_JOINED: () => {
       clearWait()
       applySession(msg.session)
-      ElMessage.success('已进入文件传输会话')
-      addNotification('success', '会话已建立', '可以开始传输文件了')
+      ElMessage.success(t('session.sessionJoined'))
+      addNotification('success', t('session.sessionJoined'), t('session.sessionJoinedDesc'))
     },
     SESSION_UPDATE: () => applySession(msg.session),
     SESSION_CLOSED: () => {
@@ -506,9 +529,12 @@ function handleMessage(msg) {
       fileCurrentPage.value = 1
       const added = fileList.value.length - previous
       if (added > 0 && !document.hasFocus() && isConnected.value) {
-        showNativeNotif('📥 新文件', `收到 ${added} 个新文件`)
+        showNativeNotif(t('notifications.newFile'), t('notifications.newFileDesc', { count: added }))
         addNotification('info', '收到新文件', `收到 ${added} 个新文件`)
       }
+    },
+    PONG: () => {
+      if (msg.t) networkLatency.value = Date.now() - msg.t
     },
     ERROR: () => ElMessage.error(msg.message || '服务端错误'),
     CHAT_MSG: () => {
@@ -538,7 +564,7 @@ function handleMessage(msg) {
 
 function deviceOnline() {
   if (!deviceName.value.trim()) {
-    ElMessage.warning('请输入设备名称')
+    ElMessage.warning(t('device.nameRequired'))
     return
   }
   if (!canRunDeviceAction('上线')) return
@@ -570,11 +596,11 @@ function canRunDeviceAction(name) {
     return false
   }
   if (Date.now() - lastDeviceActionAt.value < 1200) {
-    ElMessage.warning('操作太频繁，请稍后再试')
+    ElMessage.warning(t('errors.tooFrequent'))
     return false
   }
   if (!wsReady.value) {
-    ElMessage.warning('服务连接中，请稍后再试')
+    ElMessage.warning(t('errors.serverConnecting'))
     return false
   }
   lastDeviceActionAt.value = Date.now()
@@ -587,7 +613,7 @@ function lockDeviceAction() {
   deviceActionTimer.value = setTimeout(() => {
     loading.value = false
     deviceActionPending.value = false
-    ElMessage.warning('服务响应超时，请检查连接后重试')
+    ElMessage.warning(t('errors.serverTimeout'))
   }, 8000)
 }
 
@@ -597,7 +623,7 @@ function updateMyStatus() {
 
 function connectDevice(row) {
   if (!localOnline.value) {
-    ElMessage.warning('请先上线本机设备')
+    ElMessage.warning(t('device.pleaseOnline'))
     return
   }
   targetIpForPin.value = row.ip
@@ -612,7 +638,7 @@ function connectDevice(row) {
 
 function submitPin() {
   if (!inputPin.value.trim()) {
-    ElMessage.warning('请输入 PIN 码')
+    ElMessage.warning(t('device.pinRequired'))
     return
   }
   showPinDialog.value = false
@@ -624,7 +650,7 @@ function sendConnectRequest(targetIp, pin) {
   clearTimeout(waitTimer.value)
   waitTimer.value = setTimeout(() => {
     showWaitDialog.value = false
-    ElMessage.warning('连接超时，对方未响应')
+    ElMessage.warning(t('device.connectTimeout'))
   }, 30000)
   safeSend({ type: 'CONNECT_REQ', targetIp, pin, timestamp: Date.now() })
 }
@@ -641,11 +667,11 @@ function replyConnect(allow) {
 
 function requestJoinGroup(row) {
   if (!localOnline.value) {
-    ElMessage.warning('请先上线本机设备')
+    ElMessage.warning(t('device.pleaseOnline'))
     return
   }
   if (isConnected.value) {
-    ElMessage.warning('你已在会话中，请先离开当前会话')
+    ElMessage.warning(t('session.pleaseLeaveFirst'))
     return
   }
   safeSend({ type: 'GROUP_JOIN_REQ', groupId: row.id })
@@ -739,7 +765,7 @@ function onDropFiles(event) {
   dragActive.value = false
   const items = Array.from(event.dataTransfer?.items || [])
   if (items.some(item => item.webkitGetAsEntry?.()?.isDirectory)) {
-    ElMessage.warning('拖拽暂不支持文件夹，请点击"选择文件夹"')
+    ElMessage.warning(t('file.dragFolderNotSupported'))
     return
   }
   const files = Array.from(event.dataTransfer?.files || [])
@@ -747,14 +773,18 @@ function onDropFiles(event) {
 }
 
 function detectFolderUpload(files) {
-  const path = files[0]?.webkitRelativePath
-  if (!path) return null
-  return { batchId: createUuid(), rootName: path.replace(/\\/g, '/').split('/')[0], fileCount: files.length }
+  const relPath = files[0]?.webkitRelativePath
+  if (!relPath) return null
+  const normalized = relPath.replace(/\\/g, '/')
+  const slashIdx = normalized.indexOf('/')
+  // 必须包含路径分隔符才是真正的文件夹上传（根目录文件无路径分隔符）
+  if (slashIdx < 0) return null
+  return { batchId: createUuid(), rootName: normalized.split('/')[0], fileCount: files.length }
 }
 
 async function uploadFiles(files) {
   if (!isConnected.value) {
-    ElMessage.warning('请先进入会话')
+    ElMessage.warning(t('session.notInSession'))
     return
   }
   const oversize = files.find(file => file.size > MAX_FILE_SIZE)
@@ -763,7 +793,7 @@ async function uploadFiles(files) {
     return
   }
   if (files.reduce((sum, file) => sum + file.size, 0) > MAX_TOTAL_UPLOAD_SIZE) {
-    ElMessage.error('单次上传总大小不能超过 2GB')
+    ElMessage.error(t('file.totalSizeLimit'))
     return
   }
 
@@ -777,13 +807,13 @@ async function uploadFiles(files) {
   try {
     await uploadByChunks(files, folderMeta)
     uploadProgress.value = 100
-    ElMessage.success('上传完成')
+    ElMessage.success(t('file.uploadComplete'))
     addHistory(files, true)
-    addNotification('success', '上传完成', `成功上传 ${files.length} 个文件`)
+    addNotification('success', t('file.uploadComplete'), t('file.uploadCompleteDesc', { count: files.length }))
   } catch (error) {
     ElMessage.error(error.message || '上传失败')
     addHistory(files, false)
-    addNotification('error', '上传失败', error.message || '未知错误')
+    addNotification('error', t('file.uploadFailed'), error.message || t('errors.unknownError'))
   } finally {
     setTimeout(() => {
       uploading.value = false
@@ -878,30 +908,39 @@ function toggleSelectAll() {
 
 async function batchDownload() {
   if (!selectedKeys.value.length) return
-  const response = await downloadBatchZip({
-    sessionId: currentSessionId.value,
-    requesterIp: myRealIp.value,
-    fileKeys: selectedKeys.value
-  })
-  saveBlob(response.data, `sendfile_batch_${Date.now()}.zip`)
-  addNotification('success', '批量下载', '打包完成，开始下载')
+  try {
+    const response = await downloadBatchZip({
+      sessionId: currentSessionId.value,
+      requesterIp: myRealIp.value,
+      fileKeys: selectedKeys.value
+    })
+    saveBlob(response.data, `sendfile_batch_${Date.now()}.zip`)
+    addNotification('success', t('file.batchDownload'), t('file.batchDownloadReady'))
+  } catch (error) {
+    ElMessage.error(t('file.batchDownloadFailed'))
+    addNotification('error', t('file.batchDownloadFailed'), error.message || t('errors.unknownError'))
+  }
 }
 
 async function deleteFile(row) {
   try {
-    await ElMessageBox.confirm(`确定要删除「${row.name}」吗？此操作不可恢复`, '删除确认', { type: 'warning' })
+    await ElMessageBox.confirm(t('file.confirmDelete', { name: row.name }), t('common.delete'), { type: 'warning' })
   } catch {
     return
   }
-  const result = await deleteFileEntry({
-    sessionId: currentSessionId.value,
-    uploaderIp: myRealIp.value,
-    filePath: row.path || '',
-    fileId: row.id || ''
-  })
-  if (result.success) {
-    ElMessage.success('已删除')
-    addNotification('success', '删除成功', `已删除 ${row.name}`)
+  try {
+    const result = await deleteFileEntry({
+      sessionId: currentSessionId.value,
+      uploaderIp: myRealIp.value,
+      filePath: row.path || '',
+      fileId: row.id || ''
+    })
+    if (result.success) {
+      ElMessage.success(t('file.deleteSuccess'))
+      addNotification('success', t('file.deleteSuccess'), t('file.deleteSuccessDesc', { name: row.name }))
+    }
+  } catch (error) {
+    addNotification('error', '删除失败', error.response?.data?.message || error.message || '未知错误')
   }
 }
 
@@ -913,20 +952,24 @@ function openRenameDialog(row) {
 
 async function submitRename() {
   if (!renameValue.value.trim()) {
-    ElMessage.warning('文件名不能为空')
+    ElMessage.warning(t('file.nameRequired'))
     return
   }
   const row = renameTarget.value
-  const result = await renameFileEntry({
-    sessionId: currentSessionId.value,
-    uploaderIp: myRealIp.value,
-    filePath: row.path || '',
-    fileId: row.id || '',
-    newName: renameValue.value.trim()
-  })
-  if (result.success) {
-    ElMessage.success('已重命名')
-    showRenameDialog.value = false
+  try {
+    const result = await renameFileEntry({
+      sessionId: currentSessionId.value,
+      uploaderIp: myRealIp.value,
+      filePath: row.path || '',
+      fileId: row.id || '',
+      newName: renameValue.value.trim()
+    })
+    if (result.success) {
+      ElMessage.success(t('file.renameSuccess'))
+      showRenameDialog.value = false
+    }
+  } catch (error) {
+    addNotification('error', t('file.renameFailed'), error.response?.data?.message || error.message || t('errors.unknownError'))
   }
 }
 
@@ -941,7 +984,12 @@ function folderBrowseUp() {
   }
   const parts = folderBrowse.value.subPath.split('/').filter(Boolean)
   parts.pop()
-  folderBrowse.value.subPath = parts.join('/')
+  const newPath = parts.join('/')
+  if (!newPath) {
+    folderBrowse.value = null
+  } else {
+    folderBrowse.value.subPath = newPath
+  }
 }
 
 function enterSubFolder(name) {
@@ -1008,13 +1056,13 @@ async function previewFile(row) {
   preview.row = row
 
   if (mode === 'unsupported') {
-    ElMessage.info('该文件类型暂不支持在线预览')
+    ElMessage.info(t('file.previewUnsupported'))
     return
   }
   if (mode === 'text') {
     if (row.size > TEXT_PREVIEW_LIMIT) {
       preview.mode = 'unsupported'
-      ElMessage.warning('文本文件过大，请下载后查看')
+      ElMessage.warning(t('file.textFileTooLarge'))
       return
     }
     try {
@@ -1036,7 +1084,7 @@ function toggleChat() {
 
 function sendChat() {
   if (!isConnected.value || !wsReady.value) {
-    ElMessage.warning('请先进入会话')
+    ElMessage.warning(t('session.notInSession'))
     return
   }
   const content = chatInput.value.trim()
@@ -1056,24 +1104,37 @@ function openClipDialog() {
 
 function sendClip() {
   if (!isConnected.value || !wsReady.value) {
-    ElMessage.warning('请先进入会话')
+    ElMessage.warning(t('session.notInSession'))
     return
   }
   if (!clipContent.value.trim()) {
-    ElMessage.warning('内容不能为空')
+    ElMessage.warning(t('file.contentRequired'))
     return
   }
   safeSend({ type: 'CLIP_SHARE', content: clipContent.value.trim() })
   showClipDialog.value = false
-  ElMessage.success('已发送给所有成员')
+  ElMessage.success(t('file.clipboardSent'))
 }
 
 async function copyClip(text) {
   try {
     await navigator.clipboard.writeText(text)
-    ElMessage.success('已复制到剪贴板')
+    ElMessage.success(t('file.clipboardCopied'))
   } catch {
-    ElMessage.warning('请手动选中复制')
+    // HTTP 环境下 Clipboard API 不可用，回退到 execCommand
+    const ta = document.createElement('textarea')
+    ta.value = text
+    ta.style.position = 'fixed'
+    ta.style.left = '-9999px'
+    document.body.appendChild(ta)
+    ta.select()
+    try {
+      document.execCommand('copy')
+      ElMessage.success(t('file.clipboardCopied'))
+    } catch {
+      ElMessage.warning(t('file.clipboardManualCopy'))
+    }
+    document.body.removeChild(ta)
   }
   showClipReceive.value = false
 }
@@ -1081,9 +1142,14 @@ async function copyClip(text) {
 async function loadQrCode() {
   qrLoading.value = true
   try {
-    qrData.value = await getQrCode()
-  } catch {
-    ElMessage.error('二维码生成失败')
+    // 添加超时控制，避免长时间等待
+    const result = await Promise.race([
+      getQrCode(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('二维码生成超时')), 10000))
+    ])
+    qrData.value = result
+  } catch (err) {
+    ElMessage.error(err.message || '二维码生成失败')
   } finally {
     qrLoading.value = false
   }
@@ -1138,13 +1204,13 @@ function onDragDrop(index) {
 
 async function copyFileLink(row) {
   if (!row?.path) {
-    ElMessage.warning('文件链接不可用')
+    ElMessage.warning(t('file.linkNotAvailable'))
     return
   }
   const url = location.origin + row.path
   try {
     await navigator.clipboard.writeText(url)
-    ElMessage.success('下载链接已复制 ✓')
+    ElMessage.success(t('file.linkCopied'))
   } catch {
     const input = document.createElement('input')
     input.value = url
@@ -1152,7 +1218,7 @@ async function copyFileLink(row) {
     input.select()
     try {
       document.execCommand('copy')
-      ElMessage.success('下载链接已复制 ✓')
+      ElMessage.success(t('file.linkCopied'))
     } catch {
       ElMessage.info(`链接：${url}`)
     }
@@ -1163,8 +1229,9 @@ async function copyFileLink(row) {
 // ========== 新功能 ==========
 
 // 通知系统
+let notifSeq = 0
 function addNotification(type, title, message = '') {
-  const id = Date.now()
+  const id = Date.now() + (++notifSeq)
   notifications.value.push({ id, type, title, message })
   setTimeout(() => {
     dismissNotification(id)
@@ -1197,13 +1264,14 @@ function handleGuideSkip() {
 
 function handleGuideComplete() {
   completeGuide()
-  addNotification('success', '欢迎使用', '您已完成引导，可以开始传输文件了')
+  addNotification('success', t('guide.title'), t('guide.complete'))
 }
 
 // 语言切换
 function handleLanguageChange(lang) {
+  setLanguage(lang)
   currentLanguage.value = lang
-  addNotification('success', '语言已切换', lang === 'zh-CN' ? '已切换到简体中文' : 'Switched to English')
+  addNotification('success', t('settings.language'), lang === 'zh-CN' ? '已切换到简体中文' : 'Switched to English')
 }
 
 // 延迟检测
@@ -1211,9 +1279,8 @@ let latencyTimer = null
 function startLatencyCheck() {
   stopLatencyCheck()
   latencyTimer = setInterval(() => {
-    const start = Date.now()
-    safeSend({ type: 'PING' })
-    networkLatency.value = Date.now() - start
+    // 发送带时间戳的 PING，等收到 PONG 时再计算往返延迟
+    safeSend({ type: 'PING', t: Date.now() })
   }, 5000)
 }
 
@@ -1262,13 +1329,13 @@ function saveFileVersion(fileId, versionData) {
 
 // ========== Watchers ==========
 watch(showQrDialog, visible => {
-  if (visible) loadQrCode()
+  if (visible && !qrData.value.dataUrl) loadQrCode()
 })
 
 watch(chatOpen, visible => {
   if (visible) {
     unreadCount.value = 0
-    scrollChat()
+    nextTick(() => scrollChat())
   }
 })
 
@@ -1321,7 +1388,7 @@ body {
 
 .layout {
   display: flex;
-  height: calc(100vh - 60px);
+  flex: 1;
   overflow: hidden;
 }
 
@@ -1337,15 +1404,15 @@ body {
   justify-content: space-between;
   align-items: center;
   padding: 16px 20px;
-  border-bottom: 1px solid #ebeef5;
-  background: #fff;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
 }
 
 .panel-title {
   margin: 0;
   font-size: 18px;
   font-weight: 600;
-  color: #303133;
+  color: var(--text);
 }
 
 .panel-body {
@@ -1358,7 +1425,7 @@ body {
 @media (max-width: 768px) {
   .layout {
     flex-direction: column;
-    height: calc(100vh - 50px);
+    flex: 1;
   }
 
   .panel-header {
@@ -1514,5 +1581,123 @@ body {
   border-radius: 10px;
   font-size: 12px;
   margin-left: 4px;
+}
+
+/* ─── 页面底部 ──────────────────────────────────── */
+.app-footer {
+  flex-shrink: 0;
+  margin-top: 16px;
+  border-top: 1px solid var(--line);
+  background: var(--panel-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  position: relative;
+  transition: background 0.25s, border-color 0.25s;
+}
+
+/* 顶部渐变线 */
+.app-footer::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #2563eb, #10b981, #2563eb, transparent);
+  background-size: 100% 100%;
+  opacity: 0.5;
+}
+
+.footer-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 12px 20px;
+  gap: 16px;
+}
+
+.footer-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.footer-logo-svg {
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.footer-brand strong {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.2px;
+}
+
+.footer-badge {
+  font-size: 10px;
+  font-weight: 500;
+  padding: 2px 7px;
+  background: var(--stat-bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--muted);
+}
+
+.footer-links {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.footer-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--muted);
+  text-decoration: none;
+  padding: 4px 10px;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+.footer-link:hover {
+  color: var(--text);
+  background: var(--stat-bg);
+}
+.footer-link svg {
+  flex-shrink: 0;
+  opacity: 0.6;
+}
+
+.footer-copy {
+  font-size: 11px;
+  color: var(--muted);
+  opacity: 0.55;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .footer-inner {
+    flex-wrap: wrap;
+    justify-content: center;
+    padding: 10px 16px;
+    gap: 10px;
+  }
+
+  .footer-links {
+    order: 3;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .footer-copy {
+    font-size: 10px;
+  }
 }
 </style>
