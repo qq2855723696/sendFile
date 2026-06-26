@@ -64,7 +64,7 @@
 
       <!-- 本机 IP -->
       <div class="ip-card" :class="{ 'ip-card--online': localOnline }">
-        <div class="ip-card__label">{{ t('settings.localIp', '本机 IP') }}</div>
+        <div class="ip-card__label">{{ t('settings.localIp') }}</div>
         <div class="ip-card__value">
           <span v-if="localOnline && props.myRealIp" class="ip-card__addr">{{ props.myRealIp }}</span>
           <span v-else class="ip-card__addr ip-card__addr--na">{{ localOnline ? t('common.loading') : t('device.pleaseOnline') }}</span>

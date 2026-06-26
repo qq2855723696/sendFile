@@ -230,6 +230,8 @@ export default {
     appearance: 'Appearance',
     notifications: 'Notifications',
     language: 'Language',
+    switchedToZh: '已切换到简体中文',
+    switchedToEn: 'Switched to English',
     darkMode: 'Dark Mode',
     auto: 'Auto',
     manual: 'Manual',

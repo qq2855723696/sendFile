@@ -363,7 +363,7 @@ app.post('/upload', upload.any(), function (req, res) {
     const session = requireSession(sessionId, uploaderIp);
     if (!session) return res.status(400).json({ success: false, message: '会话已失效，请重新连接' });
     for (const file of req.files || []) {
-      session.files.push({ kind: 'file', name: file.originalname, path: '/files/' + file.filename, ip: uploaderIp, uploaderName: getDeviceName(uploaderIp), size: file.size, fileType: file.mimetype || '', time: new Date().toLocaleString('zh-CN'), uploadedAt: Date.now() });
+      session.files.push({ kind: 'file', name: file.originalname, path: '/files/' + file.filename, ip: uploaderIp, uploaderName: getDeviceName(uploaderIp), size: file.size, fileType: file.mimetype || '', time: new Date().toISOString(), uploadedAt: Date.now() });
     }
     notifySession(sessionId, { type: 'FILE_LIST', list: session.files });
     res.json({ success: true });
@@ -462,13 +462,13 @@ app.post('/upload-complete', async function (req, res) {
       if (!relPath || relPath === batch.rootName) relPath = path.basename(meta.fileName) || 'file';
       batch.files.push({ relPath: relPath, path: '/files/' + mergedName, size: meta.fileSize || 0, fileType: meta.fileType || '' });
       if (batch.files.length === batch.fileCount) {
-        session.files.push({ kind: 'folder', id: folderBatchId, name: batch.rootName, ip: batch.uploaderIp, uploaderName: getDeviceName(batch.uploaderIp), time: new Date().toLocaleString('zh-CN'), uploadedAt: Date.now(), items: batch.files.slice() });
+        session.files.push({ kind: 'folder', id: folderBatchId, name: batch.rootName, ip: batch.uploaderIp, uploaderName: getDeviceName(batch.uploaderIp), time: new Date().toISOString(), uploadedAt: Date.now(), items: batch.files.slice() });
         folderBatches.delete(folderBatchId);
         notifySession(meta.sessionId, { type: 'FILE_LIST', list: session.files });
       }
       broadcastState(); return res.json({ success: true });
     }
-    session.files.push({ kind: 'file', name: meta.relativePath || meta.fileName, path: '/files/' + mergedName, ip: meta.uploaderIp, uploaderName: getDeviceName(meta.uploaderIp), size: meta.fileSize || 0, fileType: meta.fileType || '', time: new Date().toLocaleString('zh-CN'), uploadedAt: Date.now() });
+    session.files.push({ kind: 'file', name: meta.relativePath || meta.fileName, path: '/files/' + mergedName, ip: meta.uploaderIp, uploaderName: getDeviceName(meta.uploaderIp), size: meta.fileSize || 0, fileType: meta.fileType || '', time: new Date().toISOString(), uploadedAt: Date.now() });
     notifySession(meta.sessionId, { type: 'FILE_LIST', list: session.files });
     broadcastState(); res.json({ success: true });
   } catch (e) {

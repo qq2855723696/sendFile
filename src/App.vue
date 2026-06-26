@@ -1271,7 +1271,7 @@ function handleGuideComplete() {
 function handleLanguageChange(lang) {
   setLanguage(lang)
   currentLanguage.value = lang
-  addNotification('success', t('settings.language'), lang === 'zh-CN' ? '已切换到简体中文' : 'Switched to English')
+  addNotification('success', t('settings.language'), lang === 'zh-CN' ? t('settings.switchedToZh') : t('settings.switchedToEn'))
 }
 
 // 延迟检测

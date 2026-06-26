@@ -7,7 +7,11 @@ export function formatSize(size) {
 }
 
 export function formatTime(timestamp) {
-  return new Date(timestamp).toLocaleTimeString('zh-CN', {
+  const lang = (typeof localStorage !== 'undefined' && localStorage.getItem('sendfile.language')) || 'zh-CN'
+  const locale = lang === 'en-US' ? 'en-US' : 'zh-CN'
+  return new Date(timestamp).toLocaleString(locale, {
+    month: '2-digit',
+    day: '2-digit',
     hour: '2-digit',
     minute: '2-digit'
   })
