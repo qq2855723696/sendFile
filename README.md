@@ -152,19 +152,59 @@ npm run electron:dist
 
 ---
 
-## 可用命令
+## 全部命令详解
 
-| 命令 | 说明 |
-|------|------|
-| `npm run dev` | 开发模式：同时启动后端和 Vite 前端 |
-| `npm run dev:server` | 仅启动后端服务（nodemon 监听） |
-| `npm run dev:web` | 仅启动 Vite 前端开发服务器 |
-| `npm run build` | 构建前端生产版本到 `dist/` |
-| `npm run preview` | 构建并启动生产服务（Express 托管 dist） |
-| `npm start` | 启动生产服务（等同于 `node server/index.js`） |
-| `npm run electron` | 开发模式启动 Electron 应用 |
-| `npm run electron:pack` | 打包 Electron 为解包目录 |
-| `npm run electron:dist` | 打包 Electron 为安装程序（NSIS） |
+### `npm run dev`
+**最常用的开发命令**。使用 `concurrently` 同时启动两个进程：
+
+- **后端**（蓝色日志）：`nodemon server/index.js`，监听 `server/` 目录文件变更自动重启，端口 `3001`
+- **前端**（绿色日志）：`vite --host 0.0.0.0`，启动 Vite 开发服务器，监听 `0.0.0.0` 使局域网设备可访问
+
+> 前后端通过环境变量 `VITE_DEV_API_TARGET` 和 `VITE_WS_URL` 连通。`-k` 参数确保任一进程退出时，另一个也自动终止。
+
+### `npm run dev:server`
+**仅启动后端**。适合只改后端代码或前端用其他方式运行（如 `npm run dev:web` 在另一个终端）。`STRICT_PORT=1` 表示端口 `3001` 被占用时直接报错而非自动递增，避免前端连错端口。
+
+### `npm run dev:web`
+**仅启动前端**。Vite 开发服务器独立运行，热更新极快。需配合 `dev:server` 在另一个终端使用，或连接到一个已在运行的后端。
+
+### `npm start`
+**生产模式启动**。直接执行 `node server/index.js`：
+- Express 托管 `dist/` 目录下的前端静态文件
+- WebSocket 服务运行在同一端口
+- 适用于已构建完前端（`npm run build` 后）的环境
+
+### `npm run build`
+**构建前端**。执行 `vite build`：
+- 将 Vue 组件、JS、CSS 编译打包输出到 `dist/` 目录
+- 启用代码压缩、Tree Shaking、CSS 提取等优化
+- 构建产物由 Express 直接托管（`npm start` 或 `npm run preview`）
+
+### `npm run preview`
+**构建并预览生产效果**。等于 `npm run build && npm start`：
+- 先构建前端，再启动 Express 服务
+- 用于本地验证生产环境的实际运行效果
+- 访问 `http://localhost:3000` 查看
+
+### `npm run electron`
+**Electron 开发模式**。先构建前端（`npm run build`），再启动 Electron 窗口加载 `dist/` 内容。Express 服务会随 Electron 自动启动，关闭窗口后服务停止。
+
+### `npm run electron:pack`
+**打包 Electron 为目录**。使用 `electron-builder --dir`：
+- 将 Electron 应用打包为未压缩的目录（方便调试）
+- 产物在 `release/` 目录中
+- 相比 `electron:dist` 更快，适合快速验证打包配置
+
+### `npm run electron:dist`
+**打包为安装程序**。使用 `electron-builder` 完整打包：
+- Windows：生成 NSIS 安装包（`.exe`）
+- macOS：生成 `.dmg`
+- Linux：生成 `AppImage`
+- 产物在 `release/` 目录
+- 首次运行需下载 Electron 二进制（约 100MB）
+
+### `npm run dist`
+`electron:dist` 的快捷别名。
 
 ---
 
