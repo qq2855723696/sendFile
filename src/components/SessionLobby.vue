@@ -123,7 +123,7 @@
 <script setup>
 import { computed, reactive, watch } from 'vue'
 import { useLanguage } from '@/composables/useLanguage'
-import { statusText, statusType } from '@/utils/format'
+import { statusType } from '@/utils/format'
 
 const { t } = useLanguage()
 
