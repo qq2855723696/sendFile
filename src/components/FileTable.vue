@@ -51,10 +51,12 @@
       <template #default="{ row }">{{ row.kind === 'folder' ? t('file.folderBrowser') : fileKindText(row) }}</template>
     </el-table-column>
     <el-table-column :label="t('file.fileSize')" width="100" align="center">
-      <template #default="{ row }">{{ row.kind === 'folder' ? `${(row.items || []).length} ${t('session.memberCount')}` : fileSizeText(row) }}</template>
+      <template #default="{ row }">{{ row.kind === 'folder' ? t('file.itemCount', { n: (row.items || []).length }) : fileSizeText(row) }}</template>
     </el-table-column>
     <el-table-column :label="t('file.uploader')" prop="uploaderName" width="120" />
-    <el-table-column :label="t('file.uploadTime')" prop="time" width="165" />
+    <el-table-column :label="t('file.uploadTime')" width="165">
+      <template #default="{ row }">{{ formatTime(row.time) }}</template>
+    </el-table-column>
     <el-table-column :label="t('common.more')" width="280" fixed="right" align="center">
       <template #default="{ row }">
         <div class="row-actions">
@@ -66,7 +68,7 @@
             <el-button type="primary" size="small" @click="$emit('preview', row)">{{ t('file.preview') }}</el-button>
             <el-button type="success" size="small" @click="$emit('download', row)">{{ t('file.download') }}</el-button>
           </template>
-          <el-button size="small" :icon="Link" title="复制下载链接" @click="$emit('copy-link', row)" />
+          <el-button v-if="row.kind !== 'folder'" size="small" :icon="Link" title="复制下载链接" @click="$emit('copy-link', row)" />
           <el-button v-if="row.ip === myRealIp" type="warning" size="small" @click="$emit('rename', row)">{{ t('file.rename') }}</el-button>
           <el-button v-if="row.ip === myRealIp" type="danger" size="small" @click="$emit('delete', row)">{{ t('file.delete') }}</el-button>
         </div>
@@ -78,7 +80,7 @@
 <script setup>
 import { Link } from '@element-plus/icons-vue'
 import { useLanguage } from '@/composables/useLanguage'
-import { fileIcon, fileKindText, fileSizeText, isImageFile } from '@/utils/format'
+import { fileIcon, fileKindText, fileSizeText, formatTime, isImageFile } from '@/utils/format'
 
 const { t } = useLanguage()
 

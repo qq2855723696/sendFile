@@ -38,7 +38,8 @@ export default {
     more: 'More',
     back: 'Back',
     yes: 'Yes',
-    no: 'No'
+    no: 'No',
+    items: '{n} items'
   },
 
   // Header
@@ -126,6 +127,9 @@ export default {
     uploadFolder: 'Select Folder',
     dragUpload: 'Drag files here to upload',
     pasteUpload: 'Ctrl+V to paste upload',
+    dropHint: 'Resumable · Max {size} per file',
+    itemCount: '{n} files',
+    uploadBusy: 'Upload in progress, please wait for the current task',
     uploading: 'Uploading',
     uploadComplete: 'Upload complete',
     uploadFailed: 'Upload failed',

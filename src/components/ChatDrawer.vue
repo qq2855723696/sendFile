@@ -9,8 +9,8 @@
         {{ t('chat.noMessages') }}
       </div>
       <div
-        v-for="message in messages"
-        :key="message.timestamp + message.fromIp"
+        v-for="(message, index) in messages"
+        :key="`${message.timestamp}-${message.fromIp}-${index}`"
         class="chat-bubble"
         :class="message.fromIp === myRealIp ? 'me' : 'other'"
       >

@@ -13,13 +13,20 @@ const messages = {
 
 const currentLanguage = ref(getStoredLanguage())
 
+function normalizeLanguage(lang) {
+  const lower = String(lang || '').toLowerCase()
+  if (lower.startsWith('zh')) return 'zh-CN'
+  if (lower.startsWith('en')) return 'en-US'
+  return null
+}
+
 function getStoredLanguage() {
   const stored = localStorage.getItem(LANGUAGE_KEY)
   if (stored && SUPPORTED_LANGUAGES.includes(stored)) {
     return stored
   }
-  const systemLang = navigator.language
-  if (SUPPORTED_LANGUAGES.includes(systemLang)) {
+  const systemLang = normalizeLanguage(navigator.language)
+  if (systemLang) {
     return systemLang
   }
   return DEFAULT_LANGUAGE
@@ -114,4 +121,4 @@ export function useLanguage() {
   }
 }
 
-export { translate, currentLanguage }
+export { translate, currentLanguage, getCurrentLanguage }

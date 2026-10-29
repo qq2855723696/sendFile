@@ -109,11 +109,10 @@
             @delete="$emit('delete', $event)"
           />
           <div v-if="filteredFileList.length > filePageSize" class="file-pagination">
-            <span class="pagination-info">{{ t('file.fileList') }} {{ filteredFileList.length }} {{ t('common.items', { n: filteredFileList.length }) }}</span>
+            <span class="pagination-info">{{ t('common.items', { n: filteredFileList.length }) }}</span>
             <el-pagination
               v-model:current-page="fileCurrentPageModel"
               v-model:page-size="filePageSizeModel"
-              :page-size="filePageSize"
               :page-sizes="[20, 50, 100]"
               :total="filteredFileList.length"
               layout="total, sizes, prev, pager, next"
@@ -122,7 +121,7 @@
             />
           </div>
           <div v-else-if="filteredFileList.length > 0" class="file-pagination">
-            <span class="pagination-info">共 {{ filteredFileList.length }} 个文件</span>
+            <span class="pagination-info">{{ t('common.items', { n: filteredFileList.length }) }}</span>
           </div>
         </template>
       </template>

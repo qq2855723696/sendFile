@@ -1,4 +1,5 @@
 import { ref } from 'vue'
+import { getCurrentLanguage } from '@/composables/useLanguage'
 
 export function useTransferHistory() {
   let stored = []
@@ -8,7 +9,8 @@ export function useTransferHistory() {
   const transferHistory = ref(Array.isArray(stored) ? stored : [])
 
   function addHistory(files, ok) {
-    const now = new Date().toLocaleString('zh-CN')
+    const locale = getCurrentLanguage() === 'en-US' ? 'en-US' : 'zh-CN'
+    const now = new Date().toLocaleString(locale)
     for (const file of files) transferHistory.value.unshift({ name: file.name, size: file.size, time: now, ok })
     if (transferHistory.value.length > 200) transferHistory.value = transferHistory.value.slice(0, 200)
     localStorage.setItem('sendfile.history', JSON.stringify(transferHistory.value))

@@ -2,21 +2,25 @@
 
 const express = require('express');
 const WebSocket = require('ws');
-const ip = require('ip');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const multer = require('multer');
 const crypto = require('crypto');
 const archiver = require('archiver');
 const mammoth = require('mammoth');
 const qrcode = require('qrcode');
+const { pipeline, finished } = require('stream/promises');
 
 const app = express();
 let PORT = Number(process.env.PORT || 3000);
+if (!Number.isInteger(PORT) || PORT < 1 || PORT > 65535) PORT = 3000;
 const STRICT_PORT = process.env.STRICT_PORT === '1';
 // __dirname 现在是 server/，uploads 在项目根目录
 const ROOT_DIR = path.join(__dirname, '..');
-const UPLOAD_DIR = path.join(ROOT_DIR, 'uploads');
+// Electron 打包后 app.asar 只读，上传目录使用 extraResources 里的 resources/uploads
+const UPLOAD_BASE_DIR = __dirname.includes('app.asar') ? process.resourcesPath : ROOT_DIR;
+const UPLOAD_DIR = path.join(UPLOAD_BASE_DIR, 'uploads');
 const CHUNK_DIR = path.join(UPLOAD_DIR, '.chunks');
 const MAX_FILE_SIZE = 500 * 1024 * 1024;
 const MAX_FILES_PER_UPLOAD = 500;
@@ -34,13 +38,21 @@ if (fs.existsSync(DIST_DIR)) {
   app.use(express.static(DIST_DIR));
 }
 
-app.use('/files', express.static(UPLOAD_DIR));
+// 上传文件静态访问：禁止嗅探，HTML/SVG 以沙箱方式打开，避免上传内容在本源执行脚本
+app.use('/files', express.static(UPLOAD_DIR, {
+  setHeaders: function (res, filePath) {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    if (/\.(html?|xhtml|svg|xml)$/i.test(filePath)) {
+      res.setHeader('Content-Security-Policy', "sandbox; default-src 'none'; img-src data:; style-src 'unsafe-inline'");
+    }
+  }
+}));
 app.get('/favicon.ico', (req, res) => res.status(204).end());
 
 const upload = multer({
   storage: multer.diskStorage({
     destination: UPLOAD_DIR,
-    filename: (req, file, cb) => cb(null, `${Date.now()}_${sanitizeName(file.originalname)}`)
+    filename: (req, file, cb) => cb(null, makeStoredName(file.originalname))
   }),
   limits: { fileSize: MAX_FILE_SIZE, files: MAX_FILES_PER_UPLOAD }
 });
@@ -58,7 +70,27 @@ const chunkUploads = new Map();
 const folderBatches = new Map();
 
 function sanitizeName(name) {
-  return String(name || 'file').replace(/[\\/:*?"<>|]/g, '_').replace(/\s+/g, ' ').trim() || 'file';
+  const cleaned = String(name || 'file')
+    .replace(/[\u0000-\u001f\\/:*?"<>|]/g, '_')
+    .replace(/\s+/g, ' ')
+    .replace(/[. ]+$/, '')
+    .trim()
+    .slice(0, 120);
+  return cleaned || 'file';
+}
+function makeStoredName(originalName) {
+  return Date.now() + '_' + crypto.randomBytes(4).toString('hex') + '_' + sanitizeName(originalName);
+}
+function sanitizeId(raw) {
+  const id = String(raw || '').trim();
+  return /^[A-Za-z0-9_-]{1,80}$/.test(id) ? id : null;
+}
+function sanitizeRelPath(raw) {
+  return String(raw || '')
+    .replace(/\\/g, '/')
+    .split('/')
+    .filter(part => part && part !== '.' && part !== '..')
+    .join('/');
 }
 function createUuid() {
   if (typeof crypto.randomUUID === 'function') return crypto.randomUUID();
@@ -67,11 +99,15 @@ function createUuid() {
   const h = Array.from(b, x => x.toString(16).padStart(2, '0'));
   return `${h.slice(0, 4).join('')}-${h.slice(4, 6).join('')}-${h.slice(6, 8).join('')}-${h.slice(8, 10).join('')}-${h.slice(10).join('')}`;
 }
+function isInsideDir(dir, target) {
+  const rel = path.relative(path.resolve(dir), path.resolve(target));
+  return Boolean(rel) && !rel.startsWith('..') && !path.isAbsolute(rel);
+}
 function resolveUploadPath(filePath) {
   const n = String(filePath || '').replace(/^\/files\//, '');
-  if (!n || n.includes('..')) return null;
+  if (!n || n.includes('\0')) return null;
   const d = path.resolve(UPLOAD_DIR, n);
-  return d.startsWith(path.resolve(UPLOAD_DIR)) ? d : null;
+  return isInsideDir(UPLOAD_DIR, d) ? d : null;
 }
 function normalizeIp(raw) {
   let ipAddr = String(raw || '');
@@ -79,6 +115,61 @@ function normalizeIp(raw) {
   if (ipAddr === '::1') ipAddr = '127.0.0.1';
   return ipAddr;
 }
+
+// ─── 局域网 IP 选择 ────────────────────────────────────────
+// 优先真实物理网卡，排除虚拟机/容器/WSL/Wi-Fi Direct 等虚拟网卡
+const VIRTUAL_IFACE_RE = /(vmware|vmnet|virtualbox|vbox|hyper-?v|vethernet|wsl|docker|podman|br-|veth|tap|tun\d|hamachi|tailscale|zerotier|wireguard|openvpn|npcap|loopback|wi-?fi direct|microsoft wi-?fi direct|蓝牙|本地连接|teredo|isatap)/i;
+const PHYSICAL_IFACE_RE = /^(en|eth|wlan|wlp|enp|ens|eno|wm|以太网|无线)/i;
+
+function isPrivateIPv4(addr) {
+  return /^192\.168\./.test(addr) || /^10\./.test(addr) || /^172\.(1[6-9]|2\d|3[01])\./.test(addr);
+}
+function interfaceScore(name, addr) {
+  let score = 0;
+  if (VIRTUAL_IFACE_RE.test(name)) score -= 100;
+  if (PHYSICAL_IFACE_RE.test(name)) score += 20;
+  if (/^192\.168\./.test(addr)) score += 40;
+  else if (/^10\./.test(addr)) score += 30;
+  else if (/^172\.(1[6-9]|2\d|3[01])\./.test(addr)) score += 20;
+  else if (/^169\.254\./.test(addr)) score -= 80;
+  else score += 20;
+  return score;
+}
+function getLanCandidates() {
+  const candidates = [];
+  let interfaces = {};
+  try { interfaces = os.networkInterfaces(); } catch (e) { return candidates; }
+  for (const name of Object.keys(interfaces)) {
+    for (const iface of interfaces[name] || []) {
+      if (iface.internal) continue;
+      const family = typeof iface.family === 'string' ? iface.family : String(iface.family);
+      if (family !== 'IPv4' && family !== '4') continue;
+      const address = String(iface.address || '');
+      if (!address || address === '0.0.0.0') continue;
+      candidates.push({
+        name: name,
+        address: address,
+        virtual: VIRTUAL_IFACE_RE.test(name),
+        private: isPrivateIPv4(address),
+        score: interfaceScore(name, address)
+      });
+    }
+  }
+  candidates.sort(function (a, b) { return b.score - a.score; });
+  return candidates;
+}
+const LAN_IP_OVERRIDE = String(process.env.LAN_IP || '').trim();
+function getLanIp() {
+  if (LAN_IP_OVERRIDE) return LAN_IP_OVERRIDE;
+  const candidates = getLanCandidates();
+  const best =
+    candidates.find(function (c) { return !c.virtual && c.private; }) ||
+    candidates.find(function (c) { return !c.virtual; }) ||
+    candidates.find(function (c) { return c.private; }) ||
+    candidates[0];
+  return best ? best.address : '127.0.0.1';
+}
+
 function sendTo(ipAddr, payload) {
   const d = devices.get(ipAddr);
   if (d && d.ws && d.ws.readyState === WebSocket.OPEN) d.ws.send(JSON.stringify(payload));
@@ -167,19 +258,30 @@ function startServer(port, originalPort = null) {
     if (!addr) return;
 
     PORT = addr.port;
-    const serverIp = normalizeIp(ip.address());
+    const lanIp = getLanIp();
+    const candidates = getLanCandidates();
 
     if (originalPort !== null) {
       console.log('[*] Port ' + originalPort + ' is in use, using port ' + PORT + ' instead');
     }
     console.log('\n[*] SendFile Service Started');
     console.log('    Local: http://localhost:' + PORT);
-    console.log('    LAN:   http://' + serverIp + ':' + PORT + '\n');
+    console.log('    LAN:   http://' + lanIp + ':' + PORT);
+    if (candidates.length > 1) {
+      console.log('    Other IPv4 addresses:');
+      for (const c of candidates) {
+        if (c.address === lanIp) continue;
+        console.log('      - http://' + c.address + ':' + PORT + '  (' + c.name + (c.virtual ? ', virtual' : '') + ')');
+      }
+      console.log('    Tip: set LAN_IP=<address> to force the address used by the QR code.');
+    }
+    console.log('');
 
     const wss = new WebSocket.Server({ server: server });
 
     wss.on('connection', function (ws, req) {
       const clientIp = normalizeIp(req.socket.remoteAddress);
+      ws.on('error', function () { /* 单个连接异常不应影响整个服务 */ });
       ws.on('message', function (raw) {
         try { handleSocketMessage(ws, clientIp, JSON.parse(raw)); }
         catch (e) { sendTo(clientIp, { type: 'ERROR', message: '消息格式错误' }); }
@@ -205,8 +307,9 @@ function startServer(port, originalPort = null) {
         console.error('[Error] No available ports found (tried up to 65535)');
         process.exit(1);
       }
-      server.close();
-      startServer(nextPort, originalPort === null ? port : originalPort);
+      server.close(function () {
+        startServer(nextPort, originalPort === null ? port : originalPort);
+      });
     } else {
       console.error('[Error] Server error:', err.message);
       process.exit(1);
@@ -224,7 +327,7 @@ function handleSocketMessage(ws, clientIp, msg) {
     case 'ONLINE': {
       const name = makeDeviceName(msg.name, clientIp);
       devices.set(clientIp, { ip: clientIp, name: name, status: String(msg.status || 'online').trim() || 'online', pin: String(msg.pin || '').trim(), ws: ws });
-      sendTo(clientIp, { type: 'MY_IP', ip: clientIp });
+      sendTo(clientIp, { type: 'MY_IP', ip: clientIp, lanIp: getLanIp() });
       sendTo(clientIp, { type: 'ONLINE_RESULT', success: true, assignedName: name, showToast: msg.showToast !== false });
       broadcastState(); break;
     }
@@ -321,23 +424,7 @@ function handleSocketMessage(ws, clientIp, msg) {
 // QR code
 app.get('/qrcode', async function (req, res) {
   try {
-    let serverIp = normalizeIp(ip.address());
-    // 优先使用 IPv4 地址，避免 IPv6 导致手机无法访问
-    if (serverIp.includes(':')) {
-      try {
-        const interfaces = require('os').networkInterfaces();
-        outer:
-        for (const name of Object.keys(interfaces)) {
-          for (const iface of interfaces[name]) {
-            if (iface.family === 'IPv4' && !iface.internal) {
-              serverIp = iface.address;
-              break outer;
-            }
-          }
-        }
-      } catch (e) { /* 忽略 */ }
-    }
-    const url = 'http://' + serverIp + ':' + PORT;
+    const url = 'http://' + getLanIp() + ':' + PORT;
     const dataUrl = await qrcode.toDataURL(url, { width: 280, margin: 2, errorCorrectionLevel: 'L' });
     res.json({ url: url, dataUrl: dataUrl });
   } catch (e) { res.status(500).json({ error: 'QR code error: ' + e.message }); }
@@ -345,8 +432,8 @@ app.get('/qrcode', async function (req, res) {
 
 // Resume upload
 app.get('/upload-status', function (req, res) {
-  const uploadId = String(req.query.uploadId || '').trim();
-  if (!uploadId || uploadId.includes('..')) return res.json({ chunks: [] });
+  const uploadId = sanitizeId(req.query.uploadId);
+  if (!uploadId) return res.json({ chunks: [] });
   const dir = path.join(CHUNK_DIR, uploadId);
   if (!fs.existsSync(dir)) return res.json({ chunks: [] });
   try {
@@ -361,7 +448,13 @@ app.post('/upload', upload.any(), function (req, res) {
     const sessionId = String(req.body.sessionId || '').trim();
     const uploaderIp = normalizeIp(req.ip);
     const session = requireSession(sessionId, uploaderIp);
-    if (!session) return res.status(400).json({ success: false, message: '会话已失效，请重新连接' });
+    if (!session) {
+      // 会话无效时清理已落盘的文件，避免产生孤儿文件
+      for (const file of req.files || []) {
+        try { fs.unlinkSync(file.path); } catch (e) { }
+      }
+      return res.status(400).json({ success: false, message: '会话已失效，请重新连接' });
+    }
     for (const file of req.files || []) {
       session.files.push({ kind: 'file', name: file.originalname, path: '/files/' + file.filename, ip: uploaderIp, uploaderName: getDeviceName(uploaderIp), size: file.size, fileType: file.mimetype || '', time: new Date().toISOString(), uploadedAt: Date.now() });
     }
@@ -373,25 +466,44 @@ app.post('/upload', upload.any(), function (req, res) {
 // 分片上传（含进度广播）
 app.post('/upload-chunk', chunkUpload.single('chunk'), function (req, res) {
   try {
-    const uploadId = String(req.body.uploadId || '').trim();
+    const uploadId = sanitizeId(req.body.uploadId);
     const sessionId = String(req.body.sessionId || '').trim();
     const uploaderIp = normalizeIp(req.ip);
     const chunkIndex = Number(req.body.chunkIndex);
     const totalChunks = Number(req.body.totalChunks);
+    const fileSize = Number(req.body.fileSize || 0);
     if (!requireSession(sessionId, uploaderIp)) return res.status(400).json({ success: false, message: '会话已失效，请重新连接' });
-    if (!req.file || !uploadId || !Number.isInteger(chunkIndex) || !Number.isInteger(totalChunks) || chunkIndex < 0 || totalChunks <= 0) return res.status(400).json({ success: false, message: '分片参数无效' });
-    if (!chunkUploads.has(uploadId)) {
-      chunkUploads.set(uploadId, { sessionId: sessionId, uploaderIp: uploaderIp, fileName: String(req.body.fileName || 'file'), relativePath: String(req.body.relativePath || req.body.fileName || 'file'), fileSize: Number(req.body.fileSize || 0), fileType: String(req.body.fileType || ''), totalChunks: totalChunks, createdAt: Date.now() });
+    const maxChunks = Math.ceil(MAX_FILE_SIZE / CHUNK_SIZE) + 2;
+    if (!req.file || !uploadId || !Number.isInteger(chunkIndex) || !Number.isInteger(totalChunks) ||
+      chunkIndex < 0 || chunkIndex >= totalChunks || totalChunks <= 0 || totalChunks > maxChunks) {
+      return res.status(400).json({ success: false, message: '分片参数无效' });
+    }
+    if (!Number.isFinite(fileSize) || fileSize < 0 || fileSize > MAX_FILE_SIZE) {
+      return res.status(400).json({ success: false, message: '文件大小超出限制' });
+    }
+    let meta = chunkUploads.get(uploadId);
+    if (meta && (meta.sessionId !== sessionId || meta.uploaderIp !== uploaderIp || meta.totalChunks !== totalChunks)) {
+      return res.status(409).json({ success: false, message: '上传任务与当前会话不匹配' });
+    }
+    if (!meta) {
+      meta = {
+        sessionId: sessionId,
+        uploaderIp: uploaderIp,
+        fileName: sanitizeName(req.body.fileName),
+        relativePath: sanitizeRelPath(req.body.relativePath || req.body.fileName) || sanitizeName(req.body.fileName),
+        fileSize: fileSize,
+        fileType: String(req.body.fileType || ''),
+        totalChunks: totalChunks,
+        createdAt: Date.now()
+      };
+      chunkUploads.set(uploadId, meta);
       fs.mkdirSync(path.join(CHUNK_DIR, uploadId), { recursive: true });
     }
     fs.writeFileSync(path.join(CHUNK_DIR, uploadId, chunkIndex + '.part'), req.file.buffer);
-    const meta = chunkUploads.get(uploadId);
-    if (meta) {
-      try {
-        const done = fs.readdirSync(path.join(CHUNK_DIR, uploadId)).filter(function (f) { return f.endsWith('.part'); }).length;
-        notifySession(sessionId, { type: 'UPLOAD_PROGRESS', uploadId: uploadId, uploaderIp: uploaderIp, uploaderName: getDeviceName(uploaderIp), fileName: meta.fileName, progress: Math.min(99, Math.round(done / meta.totalChunks * 100)) });
-      } catch (e) { }
-    }
+    try {
+      const done = fs.readdirSync(path.join(CHUNK_DIR, uploadId)).filter(function (f) { return f.endsWith('.part'); }).length;
+      notifySession(sessionId, { type: 'UPLOAD_PROGRESS', uploadId: uploadId, uploaderIp: uploaderIp, uploaderName: getDeviceName(uploaderIp), fileName: meta.fileName, progress: Math.min(99, Math.round(done / meta.totalChunks * 100)) });
+    } catch (e) { }
     res.json({ success: true });
   } catch (e) { res.status(500).json({ success: false, message: '分片上传失败' }); }
 });
@@ -401,11 +513,11 @@ app.post('/begin-folder-batch', function (req, res) {
   try {
     const sessionId = String(req.body.sessionId || '').trim();
     const uploaderIp = normalizeIp(req.ip);
-    const batchId = String(req.body.batchId || '').trim();
+    const batchId = sanitizeId(req.body.batchId);
     const rootName = sanitizeName(req.body.rootName);
     const fileCount = Number(req.body.fileCount);
     if (!requireSession(sessionId, uploaderIp)) return res.status(400).json({ success: false, message: '会话已失效，请重新连接' });
-    if (!batchId || !rootName || !Number.isInteger(fileCount) || fileCount <= 0) return res.status(400).json({ success: false, message: '文件夹批次参数无效' });
+    if (!batchId || !rootName || !Number.isInteger(fileCount) || fileCount <= 0 || fileCount > 5000) return res.status(400).json({ success: false, message: '文件夹批次参数无效' });
     if (folderBatches.has(batchId)) return res.status(400).json({ success: false, message: '文件夹批次已存在' });
     folderBatches.set(batchId, { sessionId: sessionId, uploaderIp: uploaderIp, rootName: rootName, fileCount: fileCount, files: [], createdAt: Date.now() });
     res.json({ success: true });
@@ -416,36 +528,39 @@ app.post('/begin-folder-batch', function (req, res) {
 app.post('/upload-complete', async function (req, res) {
   let tmpPath = null;
   try {
-    const uploadId = String(req.body.uploadId || '').trim();
-    const folderBatchId = String(req.body.folderBatchId || '').trim();
+    const uploadId = sanitizeId(req.body.uploadId);
+    const folderBatchId = sanitizeId(req.body.folderBatchId);
+    const requesterIp = normalizeIp(req.ip);
+    if (!uploadId) return res.status(400).json({ success: false, message: '上传任务不存在' });
     const meta = chunkUploads.get(uploadId);
     if (!meta) return res.status(400).json({ success: false, message: '上传任务不存在' });
+    if (meta.uploaderIp !== requesterIp) return res.status(403).json({ success: false, message: '只能由上传者完成合并' });
     const session = requireSession(meta.sessionId, meta.uploaderIp);
     if (!session) return res.status(400).json({ success: false, message: '会话已失效，请重新连接' });
+
+    let batch = null;
+    if (folderBatchId) {
+      batch = folderBatches.get(folderBatchId);
+      if (!batch || batch.sessionId !== meta.sessionId || batch.uploaderIp !== meta.uploaderIp) {
+        return res.status(400).json({ success: false, message: '文件夹批次无效或已过期' });
+      }
+    }
 
     for (let i = 0; i < meta.totalChunks; i++) {
       if (!fs.existsSync(path.join(CHUNK_DIR, uploadId, i + '.part')))
         return res.status(400).json({ success: false, message: '分片缺失，无法合并' });
     }
 
-    const mergedName = Date.now() + '_' + sanitizeName(meta.fileName);
+    const mergedName = makeStoredName(meta.fileName);
     const mergedPath = path.join(UPLOAD_DIR, mergedName);
     tmpPath = mergedPath + '.tmp';
     const out = fs.createWriteStream(tmpPath);
     for (let i = 0; i < meta.totalChunks; i++) {
       const cp = path.join(CHUNK_DIR, uploadId, i + '.part');
-      await new Promise(function (resolve, reject) {
-        const rs = fs.createReadStream(cp);
-        rs.on('error', reject);
-        rs.on('end', resolve);
-        rs.pipe(out, { end: false });
-      });
+      await pipeline(fs.createReadStream(cp), out, { end: false });
     }
-    await new Promise(function (resolve, reject) {
-      out.on('error', reject);
-      out.on('finish', resolve);
-      out.end();
-    });
+    out.end();
+    await finished(out);
 
     fs.renameSync(tmpPath, mergedPath);
     tmpPath = null;
@@ -453,27 +568,25 @@ app.post('/upload-complete', async function (req, res) {
     fs.rmSync(path.join(CHUNK_DIR, uploadId), { recursive: true, force: true });
     chunkUploads.delete(uploadId);
     notifySession(meta.sessionId, { type: 'UPLOAD_PROGRESS', uploadId: uploadId, uploaderIp: meta.uploaderIp, uploaderName: getDeviceName(meta.uploaderIp), fileName: meta.fileName, progress: 100, done: true });
-    if (folderBatchId) {
-      const batch = folderBatches.get(folderBatchId);
-      if (!batch || batch.sessionId !== meta.sessionId || batch.uploaderIp !== meta.uploaderIp) return res.status(400).json({ success: false, message: '文件夹批次无效或已过期' });
-      let relPath = String(meta.relativePath || meta.fileName).replace(/\\/g, '/');
+    if (batch) {
+      let relPath = sanitizeRelPath(meta.relativePath || meta.fileName);
       const rp = batch.rootName + '/';
       if (relPath.startsWith(rp)) relPath = relPath.slice(rp.length);
-      if (!relPath || relPath === batch.rootName) relPath = path.basename(meta.fileName) || 'file';
+      if (!relPath || relPath === batch.rootName) relPath = sanitizeRelPath(meta.fileName) || 'file';
       batch.files.push({ relPath: relPath, path: '/files/' + mergedName, size: meta.fileSize || 0, fileType: meta.fileType || '' });
-      if (batch.files.length === batch.fileCount) {
+      if (batch.files.length >= batch.fileCount) {
         session.files.push({ kind: 'folder', id: folderBatchId, name: batch.rootName, ip: batch.uploaderIp, uploaderName: getDeviceName(batch.uploaderIp), time: new Date().toISOString(), uploadedAt: Date.now(), items: batch.files.slice() });
         folderBatches.delete(folderBatchId);
         notifySession(meta.sessionId, { type: 'FILE_LIST', list: session.files });
       }
       broadcastState(); return res.json({ success: true });
     }
-    session.files.push({ kind: 'file', name: meta.relativePath || meta.fileName, path: '/files/' + mergedName, ip: meta.uploaderIp, uploaderName: getDeviceName(meta.uploaderIp), size: meta.fileSize || 0, fileType: meta.fileType || '', time: new Date().toISOString(), uploadedAt: Date.now() });
+    session.files.push({ kind: 'file', name: meta.fileName || 'file', path: '/files/' + mergedName, ip: meta.uploaderIp, uploaderName: getDeviceName(meta.uploaderIp), size: meta.fileSize || 0, fileType: meta.fileType || '', time: new Date().toISOString(), uploadedAt: Date.now() });
     notifySession(meta.sessionId, { type: 'FILE_LIST', list: session.files });
     broadcastState(); res.json({ success: true });
   } catch (e) {
     if (tmpPath) try { fs.unlinkSync(tmpPath); } catch (e2) { }
-    res.status(500).json({ success: false, message: '文件合并失败' });
+    if (!res.headersSent) res.status(500).json({ success: false, message: '文件合并失败' });
   }
 });
 
@@ -558,9 +671,10 @@ app.get('/download-folder-zip', function (req, res) {
     archive.on('error', function () { if (!res.headersSent) res.status(500).end(); });
     archive.pipe(res);
     for (const item of entry.items) {
-      const n = String(item.path || '').replace(/^\/files\//, ''); if (!n) continue;
-      const dp = path.join(UPLOAD_DIR, n);
-      if (dp.startsWith(UPLOAD_DIR) && fs.existsSync(dp)) archive.file(dp, { name: String(item.relPath || path.basename(n)).replace(/\\/g, '/') });
+      const dp = resolveUploadPath(item.path);
+      if (!dp || !fs.existsSync(dp)) continue;
+      const entryName = sanitizeRelPath(item.relPath) || sanitizeRelPath(path.basename(dp)) || 'file';
+      archive.file(dp, { name: entryName });
     }
     archive.finalize();
   } catch (e) { if (!res.headersSent) res.status(500).send('打包失败'); }
@@ -573,6 +687,7 @@ app.get('/preview/docx', async function (req, res) {
     if (!dp || !fs.existsSync(dp)) return res.status(404).send('文件不存在');
     const result = await mammoth.convertToHtml({ path: dp });
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Content-Security-Policy', "default-src 'none'; img-src data:; style-src 'unsafe-inline'");
     res.send('<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><style>body{margin:0;padding:24px;color:#172033;font:15px/1.7 "Microsoft YaHei",Arial,sans-serif;background:#fff}img{max-width:100%;height:auto}table{border-collapse:collapse;width:100%}td,th{border:1px solid #d9e1ec;padding:6px 8px}</style></head><body>' + (result.value || '<p>文档没有可预览内容</p>') + '</body></html>');
   } catch (e) { res.status(500).send('Word 文档预览失败'); }
 });
@@ -591,7 +706,10 @@ if (fs.existsSync(DIST_DIR)) {
 // Error handler
 app.use(function (err, req, res, next) {
   if (!(err instanceof multer.MulterError)) return next(err);
-  if (err.code === 'LIMIT_FILE_SIZE') return res.status(413).json({ success: false, message: '单个文件不能超过 ' + Math.floor(MAX_FILE_SIZE / 1024 / 1024) + 'MB' });
+  if (err.code === 'LIMIT_FILE_SIZE') {
+    const limit = req.path === '/upload-chunk' ? Math.floor(CHUNK_SIZE / 1024 / 1024) + 'MB' : Math.floor(MAX_FILE_SIZE / 1024 / 1024) + 'MB';
+    return res.status(413).json({ success: false, message: '文件不能超过 ' + limit });
+  }
   if (err.code === 'LIMIT_FILE_COUNT') return res.status(413).json({ success: false, message: '单次上传文件数量不能超过 ' + MAX_FILES_PER_UPLOAD + ' 个' });
   return res.status(413).json({ success: false, message: '上传文件不符合限制条件' });
 });

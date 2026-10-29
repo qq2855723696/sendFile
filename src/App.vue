@@ -28,7 +28,7 @@
       :ws-ready="wsReady"
       :local-online="localOnline"
       :loading="loading"
-      :my-real-ip="myRealIp"
+      :my-real-ip="displayIp"
       @online="deviceOnline"
       @offline="deviceOffline"
       @status-change="updateMyStatus"
@@ -276,6 +276,7 @@ const deviceName = ref(localStorage.getItem('sendfile.deviceName') || '')
 const pinCode = ref('')
 const deviceStatus = ref('online')
 const myRealIp = ref('')
+const serverLanIp = ref('')
 const deviceList = ref([])
 const groupList = ref([])
 const radar = ref({ onlineCount: 0, activeSessionCount: 0, activeTransferCount: 0, devices: [], sessions: [] })
@@ -410,6 +411,13 @@ useKeyboard({
 })
 
 // ========== Computed ==========
+function isLoopbackHost(host) {
+  return host === 'localhost' || host === '::1' || /^127\./.test(String(host || ''))
+}
+
+// 通过 localhost 访问时（如 Electron），展示服务器真实局域网 IP 而不是 127.0.0.1
+const displayIp = computed(() => (isLoopbackHost(myRealIp.value) && serverLanIp.value ? serverLanIp.value : myRealIp.value))
+
 const currentFolderEntry = computed(() => {
   if (!folderBrowse.value) return null
   return fileList.value.find(file => file.kind === 'folder' && file.id === folderBrowse.value.folderId) || null
@@ -457,6 +465,7 @@ function handleMessage(msg) {
   const handlers = {
     MY_IP: () => {
       myRealIp.value = msg.ip
+      if (msg.lanIp) serverLanIp.value = msg.lanIp
       localStorage.setItem('sendfile.myIp', msg.ip)
     },
     ONLINE_RESULT: () => {
@@ -527,6 +536,10 @@ function handleMessage(msg) {
       const previous = fileList.value.length
       fileList.value = msg.list || []
       fileCurrentPage.value = 1
+      selectedKeys.value = []
+      if (folderBrowse.value && !fileList.value.some(file => file.kind === 'folder' && file.id === folderBrowse.value.folderId)) {
+        folderBrowse.value = null
+      }
       const added = fileList.value.length - previous
       if (added > 0 && !document.hasFocus() && isConnected.value) {
         showNativeNotif(t('notifications.newFile'), t('notifications.newFileDesc', { count: added }))
@@ -787,6 +800,10 @@ async function uploadFiles(files) {
     ElMessage.warning(t('session.notInSession'))
     return
   }
+  if (uploading.value) {
+    ElMessage.warning(t('file.uploadBusy'))
+    return
+  }
   const oversize = files.find(file => file.size > MAX_FILE_SIZE)
   if (oversize) {
     ElMessage.error(`文件超过限制：${oversize.name}`)
@@ -835,18 +852,26 @@ async function uploadByChunks(files, folderMeta) {
     if (result?.success === false) throw new Error(result.message || '无法开始文件夹上传')
   }
 
-  const jobs = await Promise.all(files.map(async file => {
-    const uploadId = fileFingerprint(file)
+  const jobs = []
+  const seenUploadIds = new Set()
+  for (const file of files) {
+    let uploadId = fileFingerprint(file)
     const totalChunks = Math.max(1, Math.ceil(file.size / CHUNK_SIZE))
     let done = new Set()
-    try {
-      const status = await getUploadStatus(uploadId)
-      done = new Set(status.chunks || [])
-    } catch {
-      done = new Set()
+    if (seenUploadIds.has(uploadId)) {
+      // 同名同大小同修改时间的两个文件会得到相同 uploadId，追加随机后缀避免互相覆盖
+      uploadId = `${uploadId}_${createUuid().slice(0, 8)}`
+    } else {
+      try {
+        const status = await getUploadStatus(uploadId)
+        done = new Set(status.chunks || [])
+      } catch {
+        done = new Set()
+      }
     }
-    return { file, uploadId, totalChunks, done }
-  }))
+    seenUploadIds.add(uploadId)
+    jobs.push({ file, uploadId, totalChunks, done })
+  }
 
   const tasks = jobs.flatMap(job => Array.from({ length: job.totalChunks }, (_, chunkIndex) => ({ ...job, chunkIndex }))
     .filter(task => !task.done.has(task.chunkIndex)))
@@ -997,7 +1022,10 @@ function enterSubFolder(name) {
 }
 
 function downloadFile(row) {
-  if (!row) return
+  if (!row?.path) {
+    ElMessage.warning(t('file.linkNotAvailable'))
+    return
+  }
   const name = String(row.name || 'file').split('/').pop()
   const total = Number(row.size || 0)
   if (!total || total < LARGE_DOWNLOAD_SIZE) {
@@ -1014,6 +1042,7 @@ function downloadFile(row) {
   fetch(row.path)
     .then(response => {
       if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      if (!response.body) throw new Error('当前浏览器不支持流式下载')
       const reader = response.body.getReader()
       const chunks = []
       let loaded = 0
@@ -1207,7 +1236,11 @@ async function copyFileLink(row) {
     ElMessage.warning(t('file.linkNotAvailable'))
     return
   }
-  const url = location.origin + row.path
+  // localhost 下复制的链接外机无法访问，改用服务器局域网 IP
+  const host = isLoopbackHost(location.hostname) && serverLanIp.value
+    ? `${serverLanIp.value}${location.port ? `:${location.port}` : ''}`
+    : location.host
+  const url = `${location.protocol}//${host}${row.path}`
   try {
     await navigator.clipboard.writeText(url)
     ElMessage.success(t('file.linkCopied'))
@@ -1329,7 +1362,7 @@ function saveFileVersion(fileId, versionData) {
 
 // ========== Watchers ==========
 watch(showQrDialog, visible => {
-  if (visible && !qrData.value.dataUrl) loadQrCode()
+  if (visible) loadQrCode()
 })
 
 watch(chatOpen, visible => {
@@ -1344,6 +1377,10 @@ watch(fileSearch, () => {
 })
 
 watch(sortField, () => {
+  fileCurrentPage.value = 1
+})
+
+watch(filePageSize, () => {
   fileCurrentPage.value = 1
 })
 

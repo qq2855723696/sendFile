@@ -38,7 +38,8 @@ export default {
     more: '更多',
     back: '返回',
     yes: '是',
-    no: '否'
+    no: '否',
+    items: '{n} 项'
   },
 
   // 顶部栏
@@ -126,6 +127,9 @@ export default {
     uploadFolder: '选择文件夹',
     dragUpload: '拖拽文件到此处上传',
     pasteUpload: 'Ctrl+V 粘贴上传',
+    dropHint: '支持断点续传 · 单文件最大 {size}',
+    itemCount: '{n} 个文件',
+    uploadBusy: '正在上传，请等待当前任务完成',
     uploading: '上传中',
     uploadComplete: '上传完成',
     uploadFailed: '上传失败',

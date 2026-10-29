@@ -113,7 +113,7 @@
               style="margin-top:12px;justify-content:flex-end"
             />
           </template>
-          <div v-else class="empty">{{ t('session.noSessions') }}</div>
+          <div v-else class="empty">{{ t('device.noDevices') }}</div>
         </el-tab-pane>
       </el-tabs>
     </div>

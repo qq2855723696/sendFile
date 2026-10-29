@@ -20,15 +20,16 @@ export function useWebSocket({ onOpen, onMessage, onDisconnect, onReconnect }) {
     ws.value = socket
 
     socket.onopen = () => {
+      if (ws.value !== socket) return
       wsReady.value = true
       onOpen?.()
     }
 
     socket.onclose = () => {
-      if (ws.value === socket) {
-        wsReady.value = false
-        ws.value = null
-      }
+      // 旧连接（已被手动刷新或替换）的关闭事件不应影响当前连接状态
+      if (ws.value !== socket) return
+      wsReady.value = false
+      ws.value = null
       onDisconnect?.()
       if (!socket.manualClose) {
         onReconnect?.()
@@ -37,6 +38,7 @@ export function useWebSocket({ onOpen, onMessage, onDisconnect, onReconnect }) {
     }
 
     socket.onerror = () => {
+      if (ws.value !== socket) return
       wsReady.value = false
     }
 
@@ -61,6 +63,7 @@ export function useWebSocket({ onOpen, onMessage, onDisconnect, onReconnect }) {
       ws.value.close()
     }
     ws.value = null
+    onReconnect?.()
     setTimeout(connectSocket, 80)
   }
 

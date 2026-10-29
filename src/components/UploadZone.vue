@@ -10,7 +10,7 @@
   >
     <div class="drop-title">{{ t('file.dragUpload') }}</div>
     <div class="drop-copy">
-      {{ t('file.pasteUpload') }} · 断点续传 · 最大 500MB/个
+      {{ t('file.pasteUpload') }} · {{ t('file.dropHint', { size: formatSize(MAX_FILE_SIZE) }) }}
     </div>
     <el-progress v-if="uploading" :percentage="uploadProgress" :stroke-width="10" style="margin-top:12px" />
     <div v-if="uploading && uploadSpeedText" class="upload-speed">⚡ {{ uploadSpeedText }}</div>
@@ -19,6 +19,8 @@
 
 <script setup>
 import { useLanguage } from '@/composables/useLanguage'
+import { MAX_FILE_SIZE } from '@/constants'
+import { formatSize } from '@/utils/format'
 const { t } = useLanguage()
 
 defineProps({

@@ -57,9 +57,9 @@ export function useKeyboard(handlers = {}) {
     // 检查所有注册的快捷键
     for (const [name, shortcut] of Object.entries(KEYBOARD_SHORTCUTS)) {
       if (isShortcutMatch(event, shortcut)) {
-        event.preventDefault()
         const handlerName = name.toLowerCase().replace(/_([a-z])/g, (_, c) => c.toUpperCase())
         if (handlers[handlerName]) {
+          event.preventDefault()
           handlers[handlerName](event)
         }
         return

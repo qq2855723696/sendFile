@@ -20,6 +20,19 @@ function startServer() {
 // ─── 创建主窗口 ──────────────────────────────────────────────
 let mainWindow = null;
 
+function loadAppWithRetry(attempt) {
+  if (!mainWindow) return;
+  if (!serverModule || !serverModule.port) {
+    // 服务尚未监听成功（端口探测/自动递增），继续等待而不是加载一个空地址
+    if (attempt < 100) {
+      setTimeout(() => loadAppWithRetry(attempt + 1), 100);
+      return;
+    }
+  }
+  const port = serverModule && serverModule.port ? serverModule.port : Number(process.env.PORT || 3000);
+  mainWindow.loadURL(`http://localhost:${port}`);
+}
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1440,
@@ -39,11 +52,7 @@ function createWindow() {
 
   Menu.setApplicationMenu(null);
 
-  const PORT = Number(process.env.PORT || 3000);
-  setTimeout(() => {
-    const actualPort = serverModule && serverModule.port ? serverModule.port : PORT;
-    mainWindow.loadURL(`http://localhost:${actualPort}`);
-  }, 100);
+  loadAppWithRetry(0);
 
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
@@ -51,9 +60,13 @@ function createWindow() {
   });
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (!url.startsWith('http://localhost') && !url.startsWith('http://127.0.0.1')) {
-      shell.openExternal(url);
-    }
+    let external = false;
+    try {
+      const parsed = new URL(url);
+      external = (parsed.protocol === 'http:' || parsed.protocol === 'https:') &&
+        !['localhost', '127.0.0.1'].includes(parsed.hostname);
+    } catch { /* 非法 URL 仅阻止打开 */ }
+    if (external) shell.openExternal(url);
     return { action: 'deny' };
   });
 
