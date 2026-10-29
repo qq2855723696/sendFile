@@ -74,3 +74,4 @@ node_modules/.pnpm/
 # AI 工具本地配置（不纳入版本控制）
 .agents/
 .claude/
+skills-lock.json
