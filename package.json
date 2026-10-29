@@ -20,6 +20,7 @@
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.2",
     "archiver": "^7.0.1",
+    "archiver-utils": "^5.0.2",
     "axios": "^1.18.1",
     "element-plus": "^2.14.2",
     "express": "^5.2.1",
